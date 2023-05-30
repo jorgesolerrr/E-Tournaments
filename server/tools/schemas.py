@@ -11,3 +11,9 @@ class Match_Schema(BaseModel):
 class Player_Schema(BaseModel):
     id : int
     type: str
+
+class Tournament_Schema(BaseModel):
+    name : str
+    type : str
+    game : Game_Schema
+    players : list[Player_Schema]
