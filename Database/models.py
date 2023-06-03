@@ -14,8 +14,8 @@ class Player(Base):
     playertype = Column(String, primary_key=False, nullable=False)
     tournament = Column(Integer, ForeignKey("tournament.id"), nullable=True)
     tournamentWinner = Column(Integer, ForeignKey("tournament.id"), nullable=True)
-    match = Column(Integer, ForeignKey("match.id"), nullable=True)
-    matchWinner = Column(Integer, ForeignKey("match.id"), nullable=True)
+    matches = relationship("Match",secondary="player_matches")
+    matchWinner = relationship("Match",secondary="win_matches")
 
 
 class Tournament(Base):
@@ -33,8 +33,8 @@ class Match(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     startTime = Column(Date, primary_key=False, nullable=False)
     endTime = Column(Date, primary_key=False, nullable=True)
-    players = relationship("players")
-    winner = relationship("players")
+    players = relationship("Player",secondary="player_matches")
+    winner = relationship("Player", secondary="win_matches")
 
 
 class ScoreBoard(Base):
@@ -43,3 +43,13 @@ class ScoreBoard(Base):
     tournament = Column(Integer, ForeignKey("tournament.id"), nullable=False)
     player = Column(Integer, ForeignKey("players.id"), nullable=False)
     score = Column(Integer, primary_key=False, nullable=False)
+
+class PlayerMatches(Base):
+    __tablename__ = 'player_matches'
+    players = Column(Integer,ForeignKey("players.id"),primary_key= True)
+    matches = Column(Integer, ForeignKey("match.id"), primary_key= True)
+
+class WinMatches(Base):
+    __tablename__ = 'win_matches'
+    winners = Column(Integer, ForeignKey("players.id"), primary_key= True)
+    matches = Column(Integer, ForeignKey("match.id"), primary_key= True)
