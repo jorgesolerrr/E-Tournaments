@@ -30,3 +30,4 @@ class League(Tournament):
         for current_players in match_players:
             self.matches.append(Match_Schema(players=list(current_players), game=self.game))
              
+    
