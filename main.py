@@ -12,9 +12,12 @@ async def postTable(table_name, request: Request):
     obj = await request.json()
     with engine.connect() as conn:
         r = list(conn.execute(table.insert().values(**obj).returning(*table.c)))
+        conn.commit()
+    print(r)
     return {
         "table_name": table_name,
-         "cols": list(table.columns.keys())
+        "items": {zip(table.columns.keys(),i) for i in r},
+        "cols": list(table.columns.keys())
         
     }
 
@@ -23,9 +26,16 @@ async def getTable(table_name, request: Request):
     table = Table(table_name, metadata_obj, autoload_with=engine)
     with engine.connect() as conn:
        # r = list(conn.execute(table.select().filter_by(**params)))
-        r = list(conn.execute(table.select()))
-
+        r = list(conn.execute(table.select().where(*[
+            getattr(table.c, key) == value
+            for key, value in request.query_params.items()
+        ])))
+    print(table.columns.keys())
+    print(r)
     return {
-        "table_name": table_name,
-        "items": r, "cols": list(table.columns.keys())
+        "table_name": table.name,
+       
+        "items" : {zip(table.columns.keys(),i) for i in r},
+
+        "cols": list(table.columns.keys())
     }
