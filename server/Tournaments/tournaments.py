@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from tools import Match_Schema, Player_Schema, Game_Schema
 from itertools import combinations
+import socket
+import docker 
 
 
 class Tournament(ABC):
@@ -10,6 +12,7 @@ class Tournament(ABC):
         self.type = type
         self.players = players
         self.matches = []
+        self.match_servers = []
 
     @abstractmethod
     def CreateMatches(self):
@@ -18,6 +21,9 @@ class Tournament(ABC):
     @abstractmethod
     def GetState(self):
         pass
+
+    def CreateTournamentEnv(self):
+        
 
 class League(Tournament):
     def __init__(self, name, type, players):

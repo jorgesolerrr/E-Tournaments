@@ -1,21 +1,21 @@
 import numpy as np
+from .game_interface import IGame
 
-
-class TicTacToe:
+class TicTacToe(IGame):
     def __init__(self):
+        super().__init__()
         self.p1 = None
         self.p2 = None
+        self.board = None
+        
+        
+
+    def SetState(self, players, current):
+        self.p1 = players[0]
+        self.p2 = players[1]
         self.board = np.array([[0, 0, 0],
                                [0, 0, 0],
                                [0, 0, 0]])
-        self.current = None
-        self.finished = False
-        self.winners = None
-
-    def SetState(self, p1, p2, current, board=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]])):
-        self.p1 = p1
-        self.p2 = p2
-        self.board = board
         self.current = current
 
     def GetMoves(self):
@@ -26,7 +26,7 @@ class TicTacToe:
                     moves.append((i, j))
         return moves
 
-    def SetMoves(self, move):
+    def SetMove(self, move):
         if self.current == self.p1:
             self.board[move[0], move[1]] = 1
             self.current = self.p2
