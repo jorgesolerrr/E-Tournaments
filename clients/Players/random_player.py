@@ -18,7 +18,7 @@ class Random_Player(Player):
 
 
     def Move(self, list_of_plays: list):
-        r = random.randint(0, len(list_of_plays))
-        return list_of_plays[r]
+        r = random.choice(list_of_plays)
+        return r
     
             

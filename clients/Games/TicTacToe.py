@@ -38,25 +38,25 @@ class TicTacToe(IGame):
         if (self.board[0, 0] != 0 and self.board[0, 0] == self.board[0, 1] and self.board[0, 1] == self.board[0, 2]) or (self.board[0, 0] != 0 and self.board[0, 0] == self.board[1, 0] and self.board[1, 0] == self.board[2, 0]) or (self.board[0, 0] != 0 and self.board[0, 0] == self.board[1, 1] and self.board[1, 1] == self.board[2, 2]):
             self.finished = True
             if (self.board[0, 0] == 1):
-                self.winners = [self.p1]
+                self.winners = [self.p1[1]]
             else:
-                self.winners = [self.p2]
+                self.winners = [self.p2[1]]
             return True
 
         if (self.board[1, 1] != 0 and self.board[0, 1] == self.board[1, 1] and self.board[1, 1] == self.board[2, 1]) or (self.board[1, 1] != 0 and self.board[1, 0] == self.board[1, 1] and self.board[1, 1] == self.board[1, 2]) or (self.board[1, 1] != 0 and self.board[2, 0] == self.board[1, 1] and self.board[1, 1] == self.board[0, 2]):
             self.finished = True
             if (self.board[1, 1] == 1):
-                self.winners = [self.p1]
+                self.winners = [self.p1[1]]
             else:
-                self.winners = [self.p2]
+                self.winners = [self.p2[1]]
             return True
 
         if (self.board[2, 2] != 0 and self.board[2, 0] == self.board[2, 1] and self.board[2, 1] == self.board[2, 2]) or (self.board[2, 2] != 0 and self.board[2, 2] == self.board[1, 2] and self.board[1, 2] == self.board[0, 2]):
             self.finished = True
             if (self.board[2, 2] == 1):
-                self.winners = [self.p1]
+                self.winners = [self.p1[1]]
             else:
-                self.winners = [self.p2]
+                self.winners = [self.p2[1]]
             return True
 
         for i in range(np.shape(self.board)[0]):
