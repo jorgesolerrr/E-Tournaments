@@ -32,7 +32,7 @@ class Tournament(ABC):
             self.game = tournament_data.game
             self.type = tournament_data.type
             self.players = tournament_data.players
-            self.score = tournament_data.statistics.score
+            self.score = {player.id : 0 for player in self.players}
             self.matches = tournament_data.state.missing_matchs
             self.tournament_data = tournament_data
 
@@ -82,7 +82,7 @@ class League(Tournament):
         Tournament.__init__(self, env,name= name, game=game, type=type, players=players, tournament_data=tournament_data)
         self.CreateMatches()
         self.tournament_data.state.missing_matchs = self.matches
-        self.player_status = { player.id : False for player in players }
+        self.player_status = { player.id : False for player in self.players }
         self.executed_matches = {}
 
     def process_score(self, winners, end = False):

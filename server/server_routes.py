@@ -46,8 +46,12 @@ def finishTournament(tournamentData : Tournament_data):
         unFinishTour = tournaments_types[tournamentData.type](env,tournament_data=tournamentData)
         tournaments[tournamentData.name] = unFinishTour
         print(tournaments)
+        with open("./table_connection.json") as table:
+            table_json = json.load(table)
+        response = requests.get(f"http://{table_json['current']}/execute/{tournamentData.name}")
 
-        response = 
+        with open("./table_connection.json", "w") as table:
+            json.dump(table_json, table)
         print(response)
         return response
     except Exception as e:
