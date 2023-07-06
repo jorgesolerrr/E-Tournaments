@@ -388,7 +388,15 @@ def find_available_server():
             return requests.get(f"http://{table['next1']}/FindAvailableTable")
         else:
             return ""
-        
+
+@server_routes.get("/GetTournamentData")
+def get_tournament_data(tour_name:str, who_asks:str):
+    data = findTournament(tour_name, who_asks)
+    try:
+        return data["statistics"] 
+    except:
+        return Exception("No tournament name like " + tour_name)    
+
 server_routes.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
