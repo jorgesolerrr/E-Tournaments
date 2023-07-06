@@ -7,7 +7,7 @@ from schemas import Url, Table_Connection, Tournament_Schema, Tournament_data, P
 from server_enviroment import Server_env
 import requests
 import json
-from tournaments import League 
+from tournaments import League, Playoffs
 import uvicorn
 import sys
 
@@ -18,7 +18,8 @@ env = Server_env()
 available = True
 
 tournaments_types = {
-    "league" : League
+    "league" : League,
+    "playoffs" : Playoffs
 }   
 
 @server_routes.get("/Available")

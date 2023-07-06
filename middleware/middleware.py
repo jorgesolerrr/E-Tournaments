@@ -121,14 +121,14 @@ def main():
     }
 
   ]
-    mdw.CreateTournament("LaLiga", "league", {"amount_players": 2, "name": "TicTacToe"}, players)
-    mdw.executeTournament("LaLiga")
+    mdw.CreateTournament("LaChampions", "playoffs", {"amount_players": 2, "name": "TicTacToe"}, players)
+    mdw.executeTournament("LaChampions")
 main()
 
 
 {
-  "name": "LaLiga",
-  "type": "league",
+  "name": "LaChampions",
+  "type": "playoffs",
   "game": {
     "amount_players": 2,
     "name": "TicTacToe"
