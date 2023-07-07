@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response, BackgroundTasks
+from fastapi import FastAPI, Response, BackgroundTasks,Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
@@ -30,8 +30,9 @@ def Available():
     return False
 
 @server_routes.post("/SetEnv")
-def SetEnv(servers : int, ports : Ports):
-    return env.set_env(servers, ports.ports)
+async def SetEnv(request:Request):
+    data = await request.json()
+    return env.set_env(data)
 
 @server_routes.post("/create_tournament")
 def create_tournament(tournament : Tournament_Schema):

@@ -56,14 +56,15 @@ class Middleware:
           server_info = docker_client.api.inspect_container(match_server.id)
           container_ip = server_info['NetworkSettings']['IPAddress']
           self.match_servers.append((container_ip, ports[i]))
-        
+        ips = [item[0] for item in self.match_servers]
+        tports = [item[1] for item in self.match_servers]
         for server in self.servers:
             url = jsonable_encoder(server)
             time.sleep(1)
             # ports = self._get_availables_ports(self.matchServer_amount)
             # ports = {"ports" : ports}
             # ports = jsonable_encoder(ports)
-            r = requests.post(f"http://127.0.0.1:{server['port']}/SetEnv", params = {"servers" : self.match_servers}, json = ports)
+            r = requests.post(f"http://127.0.0.1:{server['port']}/SetEnv", json = {"ip": ips, "port": tports})
             response = requests.post(f"http://127.0.0.1:{server['port']}/SetTableConnection", json=url).json()
             
                 

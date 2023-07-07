@@ -5,8 +5,9 @@ class Server_env:
         self.match_servers = []
         self.containers = []
     
-    def set_env(self, servers_amount, ports):
-        self.match_servers = servers_amount
+    def set_env(self, data):
+        for i in range(len(data["ip"])):
+            self.match_servers.append((data["ip"][i],data["port"][i]))
         # docker_client = docker.from_env()
         # try:
         #    image = docker_client.images.get("match-server")
