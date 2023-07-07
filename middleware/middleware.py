@@ -4,7 +4,7 @@ from fastapi.encoders import jsonable_encoder
 import time
 
 class Middleware:
-    def __init__(self, tourServer_amount = 3, matchServer_amount = 2, ports = ["5010", "5011", "5012"]):
+    def __init__(self, tourServer_amount = 3, matchServer_amount = 10, ports = ["5010", "5011", "5012"]):
         self.tourServer_amount = tourServer_amount
         self.matchServer_amount = matchServer_amount
         self.ports = ports
@@ -12,6 +12,7 @@ class Middleware:
         self.tournaments = []
         self.match_portsInUse = []
         self.master = ""
+        self.match_servers = []
 
     def _get_availables_ports(self, amount : int):
         if len(self.match_portsInUse) == 0:
@@ -48,15 +49,21 @@ class Middleware:
             server_ip = server_info['NetworkSettings']['IPAddress']
             self.servers.append({"ip" : server_ip, "port" : port})
         
-        
+        ports = self._get_availables_ports(self.matchServer_amount)
+        for i in range(self.matchServer_amount):
+          cmd = ["python", "match_server.py", str(ports[i])]
+          match_server = docker_client.containers.run("match-server", ports={f'{ports[i]}/tcp': ('127.0.0.1', ports[i])}, detach= True, command=cmd)
+          server_info = docker_client.api.inspect_container(match_server.id)
+          container_ip = server_info['NetworkSettings']['IPAddress']
+          self.match_servers.append((container_ip, ports[i]))
         
         for server in self.servers:
             url = jsonable_encoder(server)
             time.sleep(1)
-            ports = self._get_availables_ports(self.matchServer_amount)
-            ports = {"ports" : ports}
-            ports = jsonable_encoder(ports)
-            r = requests.post(f"http://127.0.0.1:{server['port']}/SetEnv", params = {"servers" : self.matchServer_amount}, json = ports)
+            # ports = self._get_availables_ports(self.matchServer_amount)
+            # ports = {"ports" : ports}
+            # ports = jsonable_encoder(ports)
+            r = requests.post(f"http://127.0.0.1:{server['port']}/SetEnv", params = {"servers" : self.match_servers}, json = ports)
             response = requests.post(f"http://127.0.0.1:{server['port']}/SetTableConnection", json=url).json()
             
                 

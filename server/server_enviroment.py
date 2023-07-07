@@ -6,24 +6,25 @@ class Server_env:
         self.containers = []
     
     def set_env(self, servers_amount, ports):
-        docker_client = docker.from_env()
-        try:
-           image = docker_client.images.get("match-server")
-        except:
-            raise Exception("Match server is not available")
-        if len(ports) != servers_amount:
-            raise Exception("Equal number of ports and servers needed")
+        self.match_servers = servers_amount
+        # docker_client = docker.from_env()
+        # try:
+        #    image = docker_client.images.get("match-server")
+        # except:
+        #     raise Exception("Match server is not available")
+        # if len(ports) != servers_amount:
+        #     raise Exception("Equal number of ports and servers needed")
         
-        try:
-            for i in range(servers_amount):
-                cmd = ["python", "match_server.py", str(ports[i])]
-                match_server = docker_client.containers.run("match-server", ports={f'{ports[i]}/tcp': ('127.0.0.1', ports[i])}, detach= True, command=cmd)
-                server_info = docker_client.api.inspect_container(match_server.id)
-                container_ip = server_info['NetworkSettings']['IPAddress']
-                self.containers.append(match_server)
-                self.match_servers.append((container_ip, ports[i]))
-        except:
-            raise Exception("Something went wrong running containers")
+        # try:
+        #     for i in range(servers_amount):
+        #         cmd = ["python", "match_server.py", str(ports[i])]
+        #         match_server = docker_client.containers.run("match-server", ports={f'{ports[i]}/tcp': ('127.0.0.1', ports[i])}, detach= True, command=cmd)
+        #         server_info = docker_client.api.inspect_container(match_server.id)
+        #         container_ip = server_info['NetworkSettings']['IPAddress']
+        #         self.containers.append(match_server)
+        #         self.match_servers.append((container_ip, ports[i]))
+        # except:
+        #     raise Exception("Something went wrong running containers")
 
         return "success"
     
