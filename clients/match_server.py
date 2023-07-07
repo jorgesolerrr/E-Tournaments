@@ -89,8 +89,8 @@ def CheckAvailable():
     }
     return jsonable_encoder(response)
 
-@match_server.get("/winners/{tournament}")
-def CheckWinners(tournament : str):
+@match_server.get("/winners/{tournament}/{matchId}")
+def CheckWinners(tournament : str, matchId):
     try:
         response = executed_matches[tournament]
     except KeyError:
