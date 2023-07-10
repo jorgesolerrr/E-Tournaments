@@ -269,10 +269,10 @@ class Playoffs(Tournament):
                 winner = player
                 max = self.score[player]
         
-        for player in self.players:
-            if player == winner:
-                self.tournament_data.statistics.winners = [Player_Schema(id=player,type="random")]
-                self.tournament_data.statistics.bestPlayer = Player_Schema(id=player, type="random")
+        for player in self.totalplayers:
+            if player["id"] == winner:
+                self.tournament_data.statistics.winners = [Player_Schema(player["id"],player["type"])]
+                self.tournament_data.statistics.bestPlayer = Player_Schema(player["id"],player["type"])
                 self.tournament_data.state.finished = True
                 self.UpdateCurrentData()
                 break
