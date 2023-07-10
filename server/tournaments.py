@@ -185,8 +185,9 @@ class League(Tournament):
                     print("VOY A ACOSTARME 5 SEC")
                     time.sleep(5)
                     print("ME DESPERTE")
-                    self.UpdateCurrentData()
+                    # self.UpdateCurrentData()
                     self.executed_matches[match_server[0]] = match
+                    self.UpdateCurrentData()
                     self.SetPlayerStatus(match, True)
                 
                 else:
@@ -199,6 +200,7 @@ class League(Tournament):
         for server in self.env.match_servers:
             response = requests.get(f"http://{server[0]}:{server[1]}/winners/{self.name}").json()
             self.process_score(response, end=True)
+            self.UpdateCurrentData()
             print("*********SCORE********")
             print(self.score)
             print("**********************")
@@ -212,17 +214,20 @@ class League(Tournament):
 class Playoffs(Tournament):
     def __init__(self, env : Server_env, name = "", game : Game_Schema = None, type = "", players : list = [], tournament_data : Tournament_data = None):
         Tournament.__init__(self, env,name = name, game = game, type = type, players = players, tournament_data = tournament_data)
-        self.CreateMatches()
+        self.count = 0
+        self.totalplayers = players
         self.tournament_data.state.missing_matchs = self.matches
         self.player_status = { player.id : False for player in self.players }
         self.executed_matches = {}
+        self.winners = []
+        self.score = {player.id : 0 for player in self.players}
+        self.CreateMatches()
     
     
     def CreateMatches(self):
         players = self.players[:]
         match_players = []
         aux = []
-        count = 0
         for i in range(int(len(players)/self.game.amount_players)):
             for j in range(self.game.amount_players):
                player_k = random.choice(players)
@@ -232,20 +237,14 @@ class Playoffs(Tournament):
             match_players.append(tuple(aux_1))
             aux.clear() 
         for current_players in match_players:
-            self.matches.append(Match_Schema(id=count, tournament_name=self.name, players=list(current_players), game=self.game))
-            count += 1
+            self.matches.append(Match_Schema(id=self.count, tournament_name=self.name, players=list(current_players), game=self.game))
+            self.count += 1
 
     def process_score(self, winners, end = False):
         executed = False
-        for match in winners.keys():
-            if not end:
-                for exec_match in self.executed_matches.values():
-                    if exec_match.id == match:
-                        executed = True
-            if executed:
-                continue
-            for player in winners[match]:
-                self.score[player] += 3
+        for matchwinner in winners:
+            for win in matchwinner:
+                self.score[win] += 3
 
         self.tournament_data.statistics.score = self.score
 
@@ -279,8 +278,8 @@ class Playoffs(Tournament):
         count = 0
         len_matches = len(self.matches)
 
+        winners = []
         while len(self.matches) > 0:
-            winners = []
             for match_server in self.env.match_servers:
                 try:
                     response = requests.get(f"http://{match_server[0]}:{match_server[1]}/available").json()
@@ -316,9 +315,10 @@ class Playoffs(Tournament):
                     print("VOY A ACOSTARME 5 SEC")
                     time.sleep(5)
                     print("ME DESPERTE")
-                    self.UpdateCurrentData()
                     self.executed_matches[match_server[0]] = match
+                    self.winners.append(requests.get(f"http://{match_server[0]}:{match_server[1]}/winners/{self.name}/{match.id}").json())
                     winners.append(requests.get(f"http://{match_server[0]}:{match_server[1]}/winners/{self.name}/{match.id}").json())
+                    self.UpdateCurrentData()
                 
                 else:
                     #Asumo q la partida se demora por lo tanto paro el servidor y la repito 
@@ -328,7 +328,7 @@ class Playoffs(Tournament):
         
         if len(self.matches) == 0:
             print("***************WINNERS***************")
-            print(winners)
+            print(self.winners)
             # for match_server in self.env.match_servers:
             #     if match_server[0] in self.executed_matches.keys():
             #         for i in range(len_matches):
@@ -343,14 +343,23 @@ class Playoffs(Tournament):
                 for lista in winners:
                     print("Estoy comprobando los que pasaron de ronda")
                     print("****************LISTA DE GANADORES***************")
-                    for plyer in lista.values():
-                        winners_of_round.append({"id": plyer[0], "type": "random"})
-                        print(winners_of_round)
+                    
+                    winners_of_round.append({"id": lista[0], "type": "random"})
+                    print(winners_of_round)
                 self.players.clear()
                 for players in winners_of_round:
                     self.players.append(players)
                 
                 if len(self.players) == 1:
+                   
+                        
+                    self.process_score(self.winners, end=True)
+                    self.UpdateCurrentData()
+                    print("*********SCORE********")
+                    print(self.score)
+                    print("**********************")
+                    self.setWinner()
+                    self.finished = True
                     return "finished"
                 self.CreateMatches()
                 print("************************************************")
@@ -360,18 +369,6 @@ class Playoffs(Tournament):
             
             except Exception as e:
                 print(e)
-                self.score = {player.id : 0 for player in self.players}
-                for server in self.env.match_servers:
-                    response = requests.get(f"http://{server[0]}:{server[1]}/winners/{self.name}").json()
-                    self.process_score(response, end=True)
-                    print("*********SCORE********")
-                    print(self.score)
-                    print("**********************")
-                
-                self.setWinner()
-                self.finished = True
-
-                return "finished"
                 
         # en verdad todo esto va en except de arriba, esta aqui solo para probar
         # self.score = {player.id : 0 for player in self.players}
