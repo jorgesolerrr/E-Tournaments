@@ -392,9 +392,10 @@ def find_available_server():
 
 @server_routes.get("/GetTournamentData")
 def get_tournament_data(tour_name:str, who_asks:str):
-    data = findTournament(tour_name, who_asks)
+    data = requests.get(f"http://{who_asks}/GetServerData",params={"replicated":False})
+
     try:
-        return data["statistics"] 
+        return data
     except:
         return Exception("No tournament name like " + tour_name)    
 

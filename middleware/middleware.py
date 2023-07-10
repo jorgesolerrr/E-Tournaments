@@ -4,7 +4,7 @@ from fastapi.encoders import jsonable_encoder
 import time
 
 class Middleware:
-    def __init__(self, tourServer_amount = 3, matchServer_amount = 10, ports = ["5010", "5011", "5012"]):
+    def __init__(self, tourServer_amount = 3, matchServer_amount = 3, ports = ["5010", "5011", "5012"]):
         self.tourServer_amount = tourServer_amount
         self.matchServer_amount = matchServer_amount
         self.ports = ports
@@ -13,6 +13,7 @@ class Middleware:
         self.match_portsInUse = []
         self.master = ""
         self.match_servers = []
+        self.set_tournament_env()
 
     def _get_availables_ports(self, amount : int):
         if len(self.match_portsInUse) == 0:
@@ -102,73 +103,74 @@ class Middleware:
             if tournament[0] == name:
                 time.sleep(1)
                 response = requests.get(f"http://127.0.0.1:{tournament[1]}/execute/{tournament[0]}")
+        return tournament[1]
 
-def main():
-    mdw = Middleware()
-    mdw.set_tournament_env()
-    players = [
-    {
-      "id": 0,
-      "type": "random"
-    },
-    {
-      "id": 1,
-      "type": "random"
-    },
-    {
-      "id": 2,
-      "type": "random"
-    },
-    {
-      "id": 3,
-      "type": "random"
-    },
-    {
-      "id": 4,
-      "type": "random"
-    }
+# def main():
+#     mdw = Middleware()
+#     mdw.set_tournament_env()
+#     players = [
+#     {
+#       "id": 0,
+#       "type": "random"
+#     },
+#     {
+#       "id": 1,
+#       "type": "random"
+#     },
+#     {
+#       "id": 2,
+#       "type": "random"
+#     },
+#     {
+#       "id": 3,
+#       "type": "random"
+#     },
+#     {
+#       "id": 4,
+#       "type": "random"
+#     }
 
-  ]
-    mdw.CreateTournament("LaChampions", "playoffs", {"amount_players": 2, "name": "TicTacToe"}, players)
-    mdw.executeTournament("LaChampions")
-main()
+#   ]
+#     mdw.CreateTournament("LaChampions", "playoffs", {"amount_players": 2, "name": "TicTacToe"}, players)
+#     mdw.executeTournament("LaChampions")
+# main()
 
 
-{
-  "name": "LaChampions",
-  "type": "playoffs",
-  "game": {
-    "amount_players": 2,
-    "name": "TicTacToe"
-  },
-  "players": [
-    {
-      "id": 0,
-      "type": "random"
-    },
-    {
-      "id": 1,
-      "type": "random"
-    },
-    {
-      "id": 2,
-      "type": "random"
-    },
-    {
-      "id": 3,
-      "type": "random"
-    },
-    {
-      "id": 4,
-      "type": "random"
-    }
+# {
+#   "name": "LaChampions",
+#   "type": "playoffs",
+#   "game": {
+#     "amount_players": 2,
+#     "name": "TicTacToe"
+#   },
+#   "players": [
+#     {
+#       "id": 0,
+#       "type": "random"
+#     },
+#     {
+#       "id": 1,
+#       "type": "random"
+#     },
+#     {
+#       "id": 2,
+#       "type": "random"
+#     },
+#     {
+#       "id": 3,
+#       "type": "random"
+#     },
+#     {
+#       "id": 4,
+#       "type": "random"
+#     }
 
-  ],
-  "match_servers": 2,
-  "ports": [
-    5020,
-    5021
-  ]
-}
+#   ],
+#   "match_servers": 2,
+#   "ports": [
+#     5020,
+#     5021
+#   ]
+# }
 # container = client.containers.run('nombre_de_la_imagen',
 # volumes={'/var/run/docker.sock': {'bind': '/var/run/docker.sock', 'mode': 'rw'}})
