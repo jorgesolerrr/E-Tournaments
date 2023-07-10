@@ -85,18 +85,29 @@ class League(Tournament):
         self.tournament_data.state.missing_matchs = self.matches
         self.player_status = { player.id : False for player in self.players }
         self.executed_matches = {}
+        self.winners = []
 
+    # def process_score(self, winners, end = False):
+    #     executed = False
+    #     for match in winners.keys():
+    #         if not end:
+    #             for exec_match in self.executed_matches.values():
+    #                 if exec_match.id == match:
+    #                     executed = True
+    #         if executed:
+    #             continue
+    #         for player in winners[match]:
+    #             self.score[player] += 3
+
+    #     self.tournament_data.statistics.score = self.score
     def process_score(self, winners, end = False):
         executed = False
-        for match in winners.keys():
-            if not end:
-                for exec_match in self.executed_matches.values():
-                    if exec_match.id == match:
-                        executed = True
-            if executed:
-                continue
-            for player in winners[match]:
-                self.score[player] += 3
+        for matchwinner in winners:
+            if len(matchwinner)>1:
+                for win in matchwinner:
+                    self.score[win] += 1
+            else:
+                self.score[matchwinner[0]] += 3
 
         self.tournament_data.statistics.score = self.score
 
@@ -146,6 +157,7 @@ class League(Tournament):
         client = docker.from_env()
         count = 0
         while len(self.matches) > 0:
+            
             for match_server in self.env.match_servers:
                 try:
                     response = requests.get(f"http://{match_server[0]}:{match_server[1]}/available").json()
@@ -154,13 +166,13 @@ class League(Tournament):
                     #el servidor de partidas fallo por alguna razon
                     self.env.add_match_server(match_server[1])
                     continue
-
+                
                 if response["available"]:
                     if match_server[0] in self.executed_matches.keys():
-                        winners = requests.get(f"http://{match_server[0]}:{match_server[1]}/winners/{self.name}").json()
-                        print("************WINNERSSSS**************")
-                        print(winners)
-                        print("************************************")
+                        # winners = requests.get(f"http://{match_server[0]}:{match_server[1]}/winners/{self.name}").json()
+                        # print("************WINNERSSSS**************")
+                        # print(winners)
+                        # print("************************************")
                         # self.process_score(winners)
                         # print("**********SCORE*****************")
                         # print(self.score)
@@ -187,6 +199,9 @@ class League(Tournament):
                     print("ME DESPERTE")
                     # self.UpdateCurrentData()
                     self.executed_matches[match_server[0]] = match
+                    self.winners.append(requests.get(f"http://{match_server[0]}:{match_server[1]}/winners/{self.name}/{match.id}").json())
+                    self.process_score(self.winners,False)
+                    self.winners.clear()
                     self.UpdateCurrentData()
                     self.SetPlayerStatus(match, True)
                 
@@ -196,14 +211,12 @@ class League(Tournament):
                     self.UpdateCurrentData()
                     print(response)
         
-        self.score = {player.id : 0 for player in self.players}
-        for server in self.env.match_servers:
-            response = requests.get(f"http://{server[0]}:{server[1]}/winners/{self.name}").json()
-            self.process_score(response, end=True)
-            self.UpdateCurrentData()
-            print("*********SCORE********")
-            print(self.score)
-            print("**********************")
+        # self.score = {player.id : 0 for player in self.players}
+        # self.process_score(self.winners, end=True)
+        # self.UpdateCurrentData()
+        # print("*********SCORE********")
+        # print(self.score)
+        # print("**********************")
         
         self.setWinner()
         self.finished = True
@@ -257,9 +270,9 @@ class Playoffs(Tournament):
                 max = self.score[player]
         
         for player in self.players:
-            if player.id == winner:
-                self.tournament_data.statistics.winners = [player]
-                self.tournament_data.statistics.bestPlayer = player
+            if player == winner:
+                self.tournament_data.statistics.winners = [Player_Schema(id=player,type="random")]
+                self.tournament_data.statistics.bestPlayer = Player_Schema(id=player, type="random")
                 self.tournament_data.state.finished = True
                 self.UpdateCurrentData()
                 break
@@ -317,6 +330,8 @@ class Playoffs(Tournament):
                     print("ME DESPERTE")
                     self.executed_matches[match_server[0]] = match
                     self.winners.append(requests.get(f"http://{match_server[0]}:{match_server[1]}/winners/{self.name}/{match.id}").json())
+                    self.process_score(self.winners, False)
+                    self.winners.clear()
                     winners.append(requests.get(f"http://{match_server[0]}:{match_server[1]}/winners/{self.name}/{match.id}").json())
                     self.UpdateCurrentData()
                 
@@ -353,11 +368,8 @@ class Playoffs(Tournament):
                 if len(self.players) == 1:
                    
                         
-                    self.process_score(self.winners, end=True)
+                    # self.process_score(self.winners, end=True)
                     self.UpdateCurrentData()
-                    print("*********SCORE********")
-                    print(self.score)
-                    print("**********************")
                     self.setWinner()
                     self.finished = True
                     return "finished"
