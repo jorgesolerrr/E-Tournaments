@@ -35,7 +35,7 @@ class Tournament(ABC):
             self.game = tournament_data.game
             self.type = tournament_data.type
             self.players = tournament_data.players
-            self.score = {player.id : 0 for player in self.players}
+            self.score = tournament_data.statistics.score
             self.matches = tournament_data.state.missing_matchs.copy()
             self.missing_matches = tournament_data.state.missing_matchs
             self.finished = tournament_data.state.finished
@@ -219,9 +219,9 @@ class League(Tournament):
                 return False
         return True
 
-    def Execute(self, firstTime = 'True'):
-        print("**************************************"+ firstTime)
-        if firstTime == 'True':
+    def Execute(self, firstTime):
+        print("**************************************"+ str(firstTime))
+        if firstTime:
             with open("./current_tour_data.json") as cdata_file:
                 data_json = json.load(cdata_file)
             tour_data = jsonable_encoder(self.tournament_data)
@@ -312,8 +312,8 @@ class Playoffs(Tournament):
         self.player_status = { player.id : False for player in self.players }
         self.executed_matches = {}
         self.winners = set()
-        self.score = {player.id : 0 for player in self.players}
         if tournament_data is None:
+            self.score = {player.id : 0 for player in self.players}
             self.CreateMatches()
             self.missing_matches = self.matches[:]
     
@@ -338,11 +338,28 @@ class Playoffs(Tournament):
     def process_score(self, winners, end = False):
         executed = False
         for matchwinner in winners:
-            for win in matchwinner:
-                self.score[win] += 3
-
+                try:
+                    self.score[matchwinner[0]] += 3
+                except KeyError:
+                    self.score[str(matchwinner[0])] += 3
+                    
         self.tournament_data.statistics.score = self.score
 
+    def getWinnersRound(self):
+        print("******************CALCULANDO GANADORES DE LA RONDA")
+        current_winners = [player for player in self.players if player.id in self.winners]
+        print(current_winners)
+        if len(current_winners) != len(self.players) // 2:
+            try:
+                aux = [player for player in self.players if player.id not in self.winners and self.score[player.id] == self.score[current_winners[0].id]]
+            except KeyError:
+                 aux = [player for player in self.players if player.id not in self.winners and self.score[str(player.id)] == self.score[str(current_winners[0].id)]]
+            print("******************EL QUE FALTABA ERA")
+            print(aux)
+            print("*************************************")
+            current_winners += aux
+        
+        return current_winners
     def setWinner(self):
         max = 0
         winner = None
@@ -435,7 +452,7 @@ class Playoffs(Tournament):
                 print("Estoy comprobando los que pasaron de ronda")
                 print("****************LISTA DE GANADORES***************")
                 
-                winners_of_round = [player for player in self.players if player.id in self.winners]
+                winners_of_round = self.getWinnersRound()
                 
                 print("*******************WINNERS OF ROUNDS")
                 print(winners_of_round)

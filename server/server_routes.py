@@ -54,7 +54,7 @@ def finishTournament(tournamentData : Tournament_data):
         print(tournaments)
         with open("./table_connection.json") as table:
             table_json = json.load(table)
-        response = requests.get(f"http://{table_json['current']}/execute/{tournamentData.name}",params = {'firsTime':'False'})
+        response = requests.get(f"http://{table_json['current']}/execute/{tournamentData.name}",params = {'firstTime': False})
 
         with open("./table_connection.json", "w") as table:
             json.dump(table_json, table)
@@ -64,7 +64,7 @@ def finishTournament(tournamentData : Tournament_data):
         print("ERROR: " + str(e))
 
 @server_routes.get("/execute/{name}")
-def execute(background : BackgroundTasks,name: str, firstTime : str = 'True'):
+def execute(background : BackgroundTasks,name: str, firstTime : bool):
     try:
         available = False 
         background.add_task(tournaments[name].Execute, firstTime)

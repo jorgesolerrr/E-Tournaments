@@ -116,7 +116,7 @@ class Middleware:
         for tournament in self.tournaments:
             if tournament[0] == name:
                 time.sleep(1)
-                response = requests.get(f"http://127.0.0.1:{tournament[1]}/execute/{tournament[0]}")
+                response = requests.get(f"http://127.0.0.1:{tournament[1]}/execute/{tournament[0]}", params={"firstTime" : True})
         return tournament[1]
 
 def main():
