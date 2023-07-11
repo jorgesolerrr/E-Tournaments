@@ -278,9 +278,25 @@ def check_forUnfinishedTour():
             print("***********DATA QUE HAY EN EL TORNEO QUE NO HA TERMINADO*********************")
             print(dict(tournament_data))
             finishTournament(tournament_data)
+            return tournament_data.name
     # with open('./current_tour_data.json', "w") as cdata_file:
     #     json.dump(current_data, cdata_file)
-
+def finish_already_run_Tour(name):
+    with open('./current_tour_data.json') as cdata_file:
+        current_data = json.load(cdata_file)
+        cdata_file.close()
+    for tour in current_data["tournaments"]:
+        if (tour["name"] != name) and (not tour["state"]["finished"]):
+            tournament_data = Tournament_data( 
+                                                name=tour["name"], type=tour["type"], 
+                                                game= tour["game"], players=tour["players"],
+                                                statistics=Stats_Schema(winners=tour["statistics"]["winners"], score=tour["statistics"]["score"],
+                                                                       bestPlayer=Player_Schema(id=tour["statistics"]["bestPlayer"]["id"], 
+                                                                                                type= tour["statistics"]["bestPlayer"]["type"]), victories=tour["statistics"]["victories"]),
+                                                state=Tournament_State(finished=tour["state"]["finished"], missing_matchs=tour["state"]["missing_matchs"])    
+                                            )
+            finishTournament(tournament_data)
+            
 
 
 @server_routes.on_event('startup')
@@ -293,9 +309,10 @@ def check():
     if table["next1"] and ping(table["next1"]) == 500:
         print("Voy a desconectar a: " + table["next1"])
         disconnect(table)
-        time.sleep(1)
-        check_forUnfinishedTour()
-    check_forUnfinishedTour()
+        name = check_forUnfinishedTour()
+        print("TORNEO QUE ESTOY TERMINANDO DE OTRO SERVIDOR: " + name)
+        finish_already_run_Tour(name)
+    
   with open('./table_connection.json', 'w') as table_file:
     json.dump(table, table_file)
 

@@ -64,7 +64,7 @@ class Tournament(ABC):
     def sendData(self):
         with open("./table_connection.json") as table_file:
             data_json = json.load(table_file)
-            data_json.close()
+            table_file.close()
         response = requests.post(f"http://{data_json['next1']}/UpdateData")
         with open("./table_connection.json", "w") as table_file:
             json.dump(data_json, table_file)
@@ -82,9 +82,9 @@ class Tournament(ABC):
                 print(dict(self.tournament_data))
                 print("***************************************")
                 break
-        self.sendData()
         with open("./current_tour_data.json", "w") as cdata_file:
             json.dump(data_json, cdata_file)
+        self.sendData()
 
     def update_missing_matches(self, finished_matches):
         print("***************TRATANDO DE ACTUALIZAR JUGADORES DEL MATCH")
