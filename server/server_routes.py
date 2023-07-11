@@ -21,13 +21,16 @@ tournaments_types = {
     "league" : League,
     "playoffs" : Playoffs
 }   
-
-@server_routes.get("/Available")
 def Available():
     for tournament in tournaments.keys():
-        if tournaments[tournament].finished:
-            return True
-    return False
+        if not tournaments[tournament].finished:
+            return False
+    return True
+
+
+@server_routes.get("/Available")
+def Available_route():
+    return Available()
 
 @server_routes.post("/SetEnv")
 async def SetEnv(request:Request):
@@ -38,6 +41,7 @@ async def SetEnv(request:Request):
 def create_tournament(tournament : Tournament_Schema):
     
     currentTournament = tournaments_types[tournament.type](env, name = tournament.name, game = tournament.game, type = tournament.type, players=tournament.players)
+    currentTournament.UpdateCurrentData()
     tournaments[tournament.name] = currentTournament
     return "success"
 
@@ -50,7 +54,7 @@ def finishTournament(tournamentData : Tournament_data):
         print(tournaments)
         with open("./table_connection.json") as table:
             table_json = json.load(table)
-        response = requests.get(f"http://{table_json['current']}/execute/{tournamentData.name}")
+        response = requests.get(f"http://{table_json['current']}/execute/{tournamentData.name}",params = {'firsTime':'False'})
 
         with open("./table_connection.json", "w") as table:
             json.dump(table_json, table)
@@ -60,10 +64,10 @@ def finishTournament(tournamentData : Tournament_data):
         print("ERROR: " + str(e))
 
 @server_routes.get("/execute/{name}")
-def execute(background : BackgroundTasks,name: str, firstTime : bool = True):
+def execute(background : BackgroundTasks,name: str, firstTime : str = 'True'):
     try:
         available = False 
-        background.add_task(tournaments[name].Execute, firstTime=firstTime)
+        background.add_task(tournaments[name].Execute, firstTime)
         response = "executing in background"
     except KeyError:
         available = True
@@ -257,6 +261,9 @@ def check_forUnfinishedTour():
         if tour["name"] in tournaments.keys():
             continue
         print(tour["state"]["finished"])
+        print(f"*********************PARTIDAS QUE QUEDAN DE : {tour['name']}********************************")
+        print(tour["state"]["missing_matchs"])
+
         if not tour["state"]["finished"]:
             tournament_data = Tournament_data( 
                                                 name=tour["name"], type=tour["type"], 
@@ -266,10 +273,11 @@ def check_forUnfinishedTour():
                                                                                                 type= tour["statistics"]["bestPlayer"]["type"]), victories=tour["statistics"]["victories"]),
                                                 state=Tournament_State(finished=tour["state"]["finished"], missing_matchs=tour["state"]["missing_matchs"])    
                                             ) 
+            print("***********DATA QUE HAY EN EL TORNEO QUE NO HA TERMINADO*********************")
+            print(dict(tournament_data))
             finishTournament(tournament_data)
-
-    with open('./current_tour_data.json', "w") as cdata_file:
-        json.dump(current_data, cdata_file)
+    # with open('./current_tour_data.json', "w") as cdata_file:
+    #     json.dump(current_data, cdata_file)
 
 
 
@@ -278,6 +286,7 @@ def check_forUnfinishedTour():
 def check():
   with open('./table_connection.json') as table_file:
     table = json.load(table_file)
+    table_file.close()
     #si no puedo llegar a mi next1 desconectalo de la red
     if table["next1"] and ping(table["next1"]) == 500:
         print("Voy a desconectar a: " + table["next1"])
@@ -378,7 +387,7 @@ def disconnect(table):
 def find_available_server():
     with open('./table_connection.json') as table_file:
         table = json.load(table_file)
-    if available:
+    if Available():
         with open('./table_connection.json', 'w') as table_file:
             json.dump(table, table_file)
         return table["current"]
@@ -386,7 +395,7 @@ def find_available_server():
         with open('./table_connection.json', 'w') as table_file:
             json.dump(table, table_file)
         if table["next1"]:
-            return requests.get(f"http://{table['next1']}/FindAvailableTable")
+            return requests.get(f"http://{table['next1']}/FindAvailableServer").json()
         else:
             return ""
 

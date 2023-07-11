@@ -82,25 +82,29 @@ def PlayMatch(match : Match_Schema,
         }
     return jsonable_encoder(response)
 
-@match_server.get("/available")
-def CheckAvailable():
-    response = {
-        "available" : available
-    }
-    return jsonable_encoder(response)
+@match_server.get("/active")
+def Check():
+    return True
+
+
 
 @match_server.get("/winners/{tournament}/{matchid}")
 def CheckWinners(tournament : str,matchid : int):
     try:
         response = executed_matches[tournament][matchid]
     except KeyError:
-        response = {
-            "error": "Tournament not found"
-        }
+        response = []
 
     return jsonable_encoder(response)
 
+@match_server.get("/executed_matches/{tournament}")
+def get_executed_matches(tournament: str):
+    try:
+        response = executed_matches[tournament]
+    except KeyError:
+        response = {}
 
+    return jsonable_encoder(response)
 
 
 match_server.add_middleware(

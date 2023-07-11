@@ -2,6 +2,7 @@ import docker
 import requests
 from fastapi.encoders import jsonable_encoder
 import time
+import warnings
 
 class Middleware:
     def __init__(self, tourServer_amount = 3, matchServer_amount = 3, ports = ["5010", "5011", "5012"]):
@@ -51,12 +52,13 @@ class Middleware:
             self.servers.append({"ip" : server_ip, "port" : port})
         
         ports = self._get_availables_ports(self.matchServer_amount)
-        for i in range(self.matchServer_amount):
-          cmd = ["python", "match_server.py", str(ports[i])]
-          match_server = docker_client.containers.run("match-server", ports={f'{ports[i]}/tcp': ('127.0.0.1', ports[i])}, detach= True, command=cmd)
-          server_info = docker_client.api.inspect_container(match_server.id)
-          container_ip = server_info['NetworkSettings']['IPAddress']
-          self.match_servers.append((container_ip, ports[i]))
+        if len(self.match_servers) == 0:
+            for i in range(self.matchServer_amount):
+                cmd = ["python", "match_server.py", str(ports[i])]
+                match_server = docker_client.containers.run("match-server", ports={f'{ports[i]}/tcp': ('127.0.0.1', ports[i])}, detach= True, command=cmd)
+                server_info = docker_client.api.inspect_container(match_server.id)
+                container_ip = server_info['NetworkSettings']['IPAddress']
+                self.match_servers.append((container_ip, ports[i]))
         ips = [item[0] for item in self.match_servers]
         tports = [item[1] for item in self.match_servers]
         for server in self.servers:
@@ -81,22 +83,34 @@ class Middleware:
         self.master = self.servers[0]
 
     def CreateTournament(self, name : str, type : str, game, players : list):
-        server_available = requests.get(f"http://127.0.0.1:{self.master['port']}/FindAvailableServer").json()
-        if server_available:
+        count = len(self.tournaments)
+        
+        server_available = False
+        while not server_available:
+            if count - len(self.tournaments) == len(self.servers):
+                warnings.warn("NO HAY SERVIDORES DE TORNEO DISPONIBLES, VOY A REINICIAR TODO")
+                self.set_tournament_env()
+                count = len(self.tournaments)
 
-            tournament = {
-                  "name": name,
-                  "type": type,
-                  "game": game,
-                  "players": players,
-                }
+            current_port = self.servers[count % len(self.servers)]['port']
+            server_available = requests.get(f"http://127.0.0.1:{current_port}/Active").json()    
+            count += 1
+            
+        
+        
+        current_port = self.servers[count - 1 % len(self.servers)]['port']
+        tournament = {
+                "name": name,
+                "type": type,
+                "game": game,
+                "players": players,
+            }
 
-            tournament = jsonable_encoder(tournament)
-            available_port = server_available.split(':')[1]
-            response = requests.post(f"http://127.0.0.1:{available_port}/create_tournament", json=tournament).json()
-            self.tournaments.append((name, available_port))
-        else:
-            raise Exception("Not server available")
+        tournament = jsonable_encoder(tournament)
+        response = requests.post(f"http://127.0.0.1:{current_port}/create_tournament", json=tournament).json()
+        self.tournaments.append((name, current_port))
+        
+            
         
     def executeTournament(self, name):
         for tournament in self.tournaments:
@@ -105,9 +119,9 @@ class Middleware:
                 response = requests.get(f"http://127.0.0.1:{tournament[1]}/execute/{tournament[0]}")
         return tournament[1]
 
-# def main():
-#     mdw = Middleware()
-#     mdw.set_tournament_env()
+def main():
+     mdw = Middleware()
+    
 #     players = [
 #     {
 #       "id": 0,
@@ -133,7 +147,7 @@ class Middleware:
 #   ]
 #     mdw.CreateTournament("LaChampions", "playoffs", {"amount_players": 2, "name": "TicTacToe"}, players)
 #     mdw.executeTournament("LaChampions")
-# main()
+#main()
 
 
 # {
