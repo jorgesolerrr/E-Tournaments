@@ -98,7 +98,7 @@ class Middleware:
             
         
         
-        current_port = self.servers[count - 1 % len(self.servers)]['port']
+        current_port = self.servers[(count - 1) % len(self.servers)]['port']
         tournament = {
                 "name": name,
                 "type": type,

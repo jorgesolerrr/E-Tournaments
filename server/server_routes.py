@@ -1,3 +1,4 @@
+import time
 from fastapi import FastAPI, Response, BackgroundTasks,Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
@@ -256,6 +257,7 @@ def check_forUnfinishedTour():
     print("ESTOY CHECKEANDO SI HAY TORNEOS SIN TERMINAR")
     with open('./current_tour_data.json') as cdata_file:
         current_data = json.load(cdata_file)
+        cdata_file.close()
     
     for tour in current_data["tournaments"]:
         if tour["name"] in tournaments.keys():
@@ -291,8 +293,9 @@ def check():
     if table["next1"] and ping(table["next1"]) == 500:
         print("Voy a desconectar a: " + table["next1"])
         disconnect(table)
+        time.sleep(1)
         check_forUnfinishedTour()
-
+    check_forUnfinishedTour()
   with open('./table_connection.json', 'w') as table_file:
     json.dump(table, table_file)
 

@@ -64,6 +64,7 @@ class Tournament(ABC):
     def sendData(self):
         with open("./table_connection.json") as table_file:
             data_json = json.load(table_file)
+            data_json.close()
         response = requests.post(f"http://{data_json['next1']}/UpdateData")
         with open("./table_connection.json", "w") as table_file:
             json.dump(data_json, table_file)
@@ -71,6 +72,7 @@ class Tournament(ABC):
     def UpdateCurrentData(self):
         with open("./current_tour_data.json") as cdata_file:
             data_json = json.load(cdata_file)
+            cdata_file.close()
         for i in range(len(data_json["tournaments"])):
             if data_json["tournaments"][i]["name"] == self.name:
                 data_json["tournaments"].pop(i)
@@ -178,9 +180,15 @@ class League(Tournament):
         for matchwinner in winners:
             if len(matchwinner)>1:
                 for win in matchwinner:
-                    self.score[win] += 1
+                    try:
+                        self.score[win] += 1
+                    except KeyError:
+                        self.score[str(win)] += 1
             else:
-                self.score[matchwinner[0]] += 3
+                try:
+                    self.score[matchwinner[0]] += 3
+                except KeyError:
+                    self.score[str(matchwinner[0])] += 3
 
         self.tournament_data.statistics.score = self.score
 
@@ -224,6 +232,7 @@ class League(Tournament):
         if firstTime:
             with open("./current_tour_data.json") as cdata_file:
                 data_json = json.load(cdata_file)
+                cdata_file.close()
             tour_data = jsonable_encoder(self.tournament_data)
             data_json["tournaments"].append(tour_data)
             self.sendData()
