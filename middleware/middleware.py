@@ -36,6 +36,7 @@ class Middleware:
         except:
             raise Exception("Match server or tournament server images not available")
 
+        # network = docker_client.networks.create("mi_red")
 
         volumes = { '/var/run/docker.sock': { 'bind': '/var/run/docker.sock', 'mode': 'rw' } }
         for port in self.ports:
@@ -46,16 +47,24 @@ class Middleware:
                                         ports={f'{port}/tcp': ("127.0.0.1", port)},
                                         volumes=volumes,
                                         command=cmd,
+                                        network = "mi_red",
                                     )
-            server_info = docker_client.api.inspect_container(tour_server.id)
-            server_ip = server_info['NetworkSettings']['IPAddress']
-            self.servers.append({"ip" : server_ip, "port" : port})
+            # server_info = docker_client.api.inspect_container(tour_server.id)
+            # server_ip = server_info['NetworkSettings']['IPAddress']
+            # self.servers.append({"ip" : server_ip, "port" : port})
         
+        network = docker_client.networks.get("mi_red")
+        network_info = network.attrs
+        containers = network_info['Containers']
+        for container_id, container_info in containers.items():
+            ip_address = container_info['IPv4Address']
+            self.servers.append({"ip" : ip_address, "port" : port})
+
         ports = self._get_availables_ports(self.matchServer_amount)
         if len(self.match_servers) == 0:
             for i in range(self.matchServer_amount):
                 cmd = ["python", "match_server.py", str(ports[i])]
-                match_server = docker_client.containers.run("match-server", ports={f'{ports[i]}/tcp': ('127.0.0.1', ports[i])}, detach= True, command=cmd)
+                match_server = docker_client.containers.run("match-server", ports={f'{ports[i]}/tcp': ('127.0.0.1', ports[i])}, detach= True, command=cmd, network = "mi_red")
                 server_info = docker_client.api.inspect_container(match_server.id)
                 container_ip = server_info['NetworkSettings']['IPAddress']
                 self.match_servers.append((container_ip, ports[i]))

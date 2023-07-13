@@ -36,7 +36,7 @@ class Server_env:
         except:
             raise Exception("Match server is not available")
         cmd = ["python", "match_server.py", str(port)]
-        match_server = docker_client.containers.run("match-server", ports={f'{port}/tcp': ('127.0.0.1', port)}, detach= True, command=cmd)
+        match_server = docker_client.containers.run("match-server", ports={f'{port}/tcp': ('127.0.0.1', port)}, detach= True, command=cmd, network = "mi_red")
         self.match_servers.append((match_server, port))
     
     def check_env(self):
