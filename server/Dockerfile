@@ -11,6 +11,8 @@ RUN pip install docker
 
 RUN pip install fastapi_utils
 
+RUN pip install python-multipart
+
 WORKDIR /app
 
 COPY . .

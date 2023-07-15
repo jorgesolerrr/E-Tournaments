@@ -1,5 +1,5 @@
 import time
-from fastapi import FastAPI, Response, BackgroundTasks,Request
+from fastapi import FastAPI, Response, BackgroundTasks,Request, UploadFile, File
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
@@ -11,6 +11,8 @@ import json
 from tournaments import League, Playoffs
 import uvicorn
 import sys
+from os import getcwd, listdir
+
 
 
 server_routes = FastAPI()
@@ -40,7 +42,12 @@ async def SetEnv(request:Request):
 
 @server_routes.post("/create_tournament")
 def create_tournament(tournament : Tournament_Schema):
-    
+    path = getcwd() + "server/games"
+    if not f"{tournament.game.name}.py" in listdir(path):
+        return JSONResponse(content={"error": f"The code of game {tournament.game.name} doesn't exist, please provide the code"}, status_code=404)
+     
+
+
     currentTournament = tournaments_types[tournament.type](env, name = tournament.name, game = tournament.game, type = tournament.type, players=tournament.players)
     currentTournament.UpdateCurrentData()
     tournaments[tournament.name] = currentTournament
@@ -419,6 +426,28 @@ def find_available_server():
         else:
             return ""
 
+@server_routes.post("/UploadGame")
+async def Upload_game(file : UploadFile = File(...), begins : str = ""):
+    #! quitar server del path
+    path = getcwd() + f"/server/games"
+    next = get_node_connection("next1")
+    current = get_node_connection("current")
+    if len(begins) == 0:
+        begins = current
+    elif current == begins:
+        return True
+        
+    if not file.filename in listdir(path):   
+        with open(path,"wb") as pyFile:
+            content = await file.read()
+            pyFile.write(content)
+            file = { "file" : pyFile}
+            pyFile.close()
+    
+    response = requests.post(f"http://{next}/UploadGame", files=file, params = {"begins" : begins}).json()
+    return response
+
+
 @server_routes.get("/GetTournamentData")
 def get_tournament_data(tour_name:str, who_asks:str):
     data = requests.get(f"http://{who_asks}/GetServerData",params={"replicated":False})
@@ -441,5 +470,5 @@ if __name__ == "__main__":
     try: 
         arg1 = int(sys.argv[1])
     except:
-        arg1 = 5010
+        arg1 = 5011
     uvicorn.run("server_routes:server_routes", host="0.0.0.0", port=arg1, reload=True)
