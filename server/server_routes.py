@@ -499,7 +499,10 @@ def present_yourself():
 def Listen():
     my_adress = get_node_connection("current")
     #en caso de que no seas el lider no escuches
-    if env.leader != "" and env.leader != my_adress:
+    if env.leader == "":
+        env.set_leader(my_adress)
+        return
+    if env.leader != my_adress:
         return
 
     logger.info("**************ESTOY ESCUCHANDO***********")
@@ -515,15 +518,18 @@ def Listen():
     mensaje, direccion = sock.recvfrom(1024)
     mensaje = mensaje.decode()
     if mensaje == "Aceptado":
+        logger.info("ACEPTADO")
         sock.close
         return
     if mensaje == "No Aceptado":
+        logger.info("NO ACEPTADO")
         present_yourself()
     if "Hola a todos" in mensaje:
-        address = mensaje.split(",")[1]
+        logger.info(mensaje)
+        address = mensaje.split(":")[1]
         #añadiendo servidor al anillo
         try:
-            response = requests.post(f"http://{address}/AddTourServer", params={"url" : env.leader})
+            response = requests.post(f"http://0.0.0.0:{address}/AddTourServer", params={"url" : env.leader})
             back_message = b"Aceptado"
         except Exception as e:
             logger.error(f"NO PUDE AÑADIR A : {address} AL ANILLO -----> {str(e)}")
@@ -531,9 +537,9 @@ def Listen():
 
         sock.sendto(back_message, direccion)
     #caso en que esté yo solo en la red, no sé si es que el tipo recibe mensaje vacío
-    if mensaje == "":
-        if env.leader == "":
-            env.set_leader(my_adress)
+    # if mensaje == "":
+    #     if env.leader == "":
+    #         env.set_leader(my_adress)
     
     sock.close()
             
