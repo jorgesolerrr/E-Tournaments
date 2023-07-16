@@ -148,6 +148,11 @@ def add_server(url : Url):
     with open('./table_connection.json', 'w') as table_file:
         json.dump(table, table_file)   
     
+    #actualizo el lider
+    leader = requests.get(f"http://{url}/GetLeader").json()
+    env.leader = leader
+
+
     #voy a replicar el table propio de mi antecesor
     update_data()
     #mi sucesor va a replicar mi información, la cual es necesariamente vacia y por ende se manda a limpiar su table replicado
@@ -175,6 +180,9 @@ def insert(position: str, url: str):
     with open('./table_connection.json', 'w') as table_file:
         json.dump(table, table_file)
 
+@server_routes.get("/GetLeader")
+def getLeader():
+    return env.leader
 
 @server_routes.get("/IsConnect")
 def isconnect(url_to_search: str, who_asks):
@@ -257,7 +265,20 @@ def ping(server):
         return 200
     except:
         return 500
+
+@server_routes.post("/UpdateLeader")
+def UpdateLeader(url : str):
+    with open('./table_connection.json') as table_file:
+        table = json.load(table_file)
+        table_file.close()
+    if table["current"] == url:
+        return True
     
+
+    env.set_leader(url)
+    return requests.post(f"http://{table['next1']}/UpdateLeader").json()
+    
+
 @server_routes.get("/Active")
 def active():
   return True  
@@ -290,6 +311,7 @@ def check_forUnfinishedTour():
             return tournament_data.name
     # with open('./current_tour_data.json', "w") as cdata_file:
     #     json.dump(current_data, cdata_file)
+
 def finish_already_run_Tour(name):
     with open('./current_tour_data.json') as cdata_file:
         current_data = json.load(cdata_file)
@@ -318,10 +340,13 @@ def check():
     if table["next1"] and ping(table["next1"]) == 500:
         print("Voy a desconectar a: " + table["next1"])
         disconnect(table)
+        env.set_leader(table["current"])
+        resp = UpdateLeader(table["current"])
         name = check_forUnfinishedTour()
         print("TORNEO QUE ESTOY TERMINANDO DE OTRO SERVIDOR: " + name)
         finish_already_run_Tour(name)
-    
+        
+
   with open('./table_connection.json', 'w') as table_file:
     json.dump(table, table_file)
 
@@ -440,18 +465,19 @@ async def Upload_game(file : UploadFile = File(...), begins : str = ""):
         begins = current
     elif current == begins:
         return True
-        
+
+    content = await file.read()
+    time.sleep(1)
     if not file.filename in listdir(path):   
         with open(path + f"/{file.filename}","wb") as pyFile:
             print("***************ESTOY GUARDANDO EL ARCHIVO")
-            content = await file.read()
-            time.sleep(1)
             pyFile.write(content)
+            time.sleep(1)
             pyFile.close()
     if len(next) == 0:
         return True
     print("***************SE LO VOY A MANDAR A---------> " + next)
-    response = requests.post(f"http://{next}/UploadGame", files={"file": open(path + f"/{file.filename}", "rb")}, params = {"begins" : begins}).json()
+    response = requests.post(f"http://{next}/UploadGame", files={"file": content}, params = {"begins" : begins}).json()
     return response
 
 @server_routes.on_event("startup")
@@ -496,3 +522,4 @@ if __name__ == "__main__":
     except:
         arg1 = 5010
     uvicorn.run("server_routes:server_routes", host="0.0.0.0", port=arg1, reload=True)
+    print("hola")
