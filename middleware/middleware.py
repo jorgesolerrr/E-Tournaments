@@ -81,12 +81,12 @@ class Middleware:
             
                 
         
-        url_toConnect = jsonable_encoder(self.servers[1])
-        response = requests.post(f"http://127.0.0.1:{self.servers[0]['port']}/AddTourServer", json=url_toConnect)
+        url_toConnect = f"{self.servers[1]['ip']}:{self.servers[1]['port']}"
+        response = requests.post(f"http://127.0.0.1:{self.servers[0]['port']}/AddTourServer", params={"url" : url_toConnect})
         #conectar el ultimo con el primero para completar el ciclo
-        url_toConnect = jsonable_encoder(self.servers[0])
+        url_toConnect = f"{self.servers[0]['ip']}:{self.servers[0]['port']}"
         for i in range(2, len(self.servers)):
-          response = requests.post(f"http://127.0.0.1:{self.servers[i]['port']}/AddTourServer", json=url_toConnect)
+          response = requests.post(f"http://127.0.0.1:{self.servers[i]['port']}/AddTourServer", params={"url" : url_toConnect})
 
 
         self.master = self.servers[0]

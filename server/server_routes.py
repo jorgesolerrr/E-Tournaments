@@ -497,6 +497,11 @@ def present_yourself():
 @server_routes.on_event("startup")
 @repeat_every(seconds = 5)
 def Listen():
+    my_adress = get_node_connection("current")
+    #en caso de que no seas el lider no escuches
+    if env.leader != "" and env.leader != my_adress:
+        return
+
     logger.info("**************ESTOY ESCUCHANDO***********")
     
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -518,7 +523,7 @@ def Listen():
         address = mensaje.split(",")[1]
         #añadiendo servidor al anillo
         try:
-            response = requests.post(f"http://{address}/AddTourServer", params={"url" : address})
+            response = requests.post(f"http://{address}/AddTourServer", params={"url" : env.leader})
             back_message = b"Aceptado"
         except Exception as e:
             logger.error(f"NO PUDE AÑADIR A : {address} AL ANILLO -----> {str(e)}")
@@ -528,7 +533,6 @@ def Listen():
     #caso en que esté yo solo en la red, no sé si es que el tipo recibe mensaje vacío
     if mensaje == "":
         if env.leader == "":
-            my_adress = get_node_connection("current")
             env.set_leader(my_adress)
     
     sock.close()
