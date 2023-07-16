@@ -64,7 +64,7 @@ class Middleware:
         if len(self.match_servers) == 0:
             for i in range(self.matchServer_amount):
                 cmd = ["python", "match_server.py", str(ports[i])]
-                match_server = docker_client.containers.run("match-server", ports={f'{ports[i]}/tcp': ('127.0.0.1', ports[i])}, detach= True, command=cmd, network = "mi_red")
+                match_server = docker_client.containers.run("match-server", ports={f'{ports[i]}/tcp': ('127.0.0.1', ports[i])}, detach= True, command=cmd)
                 server_info = docker_client.api.inspect_container(match_server.id)
                 container_ip = server_info['NetworkSettings']['IPAddress']
                 self.match_servers.append((container_ip, ports[i]))
@@ -77,7 +77,6 @@ class Middleware:
             # ports = {"ports" : ports}
             # ports = jsonable_encoder(ports)
             r = requests.post(f"http://127.0.0.1:{server['port']}/SetEnv", json = {"ip": ips, "port": tports})
-            response = requests.post(f"http://127.0.0.1:{server['port']}/SetTableConnection", json=url).json()
             
                 
         
