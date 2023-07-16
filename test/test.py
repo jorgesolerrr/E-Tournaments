@@ -3,7 +3,7 @@ import socket
 
 
 
-class NetworkManager():
+class Listener():
     def __init__(self):
         self.tour_list = []
         self.matchs_list = []
@@ -47,9 +47,9 @@ class NetworkManager():
     #                 if 5010 <= int(port) and int(port) < 5020:
     #                     self.tour_list.append(str(ip_addresses) + ":" + str(port))
         
-    def Talk(self,socket):
-        mensaje = b"Hola a todos!"
-        socket.sendto(mensaje, ('<broadcast>', 12345))
+    def Listen(self,socket):
+        mensaje, direccion = socket.recvfrom(1024)
+        print(f"Mensaje recibido: {mensaje.decode()} de {direccion}")
 
     # # def get_network_name(self):
     # #     hostname = socket.gethostname()
@@ -58,10 +58,10 @@ class NetworkManager():
     
 
 if __name__ == "__main__":
-    a = NetworkManager()
-    tsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    tsock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    while(True):
-        a.Talk(tsock)
+    a = Listener()
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    
+# Configura el socket para escuchar en la dirección de broadcast de la red local en el puerto 12345
+    sock.bind(('', 12345))
+    while(True):
+        a.Listen(sock)

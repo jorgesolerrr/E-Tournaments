@@ -12,6 +12,8 @@ from tournaments import League, Playoffs
 import uvicorn
 import sys
 from os import getcwd, listdir
+import os
+import socket
 
 
 
@@ -452,6 +454,23 @@ async def Upload_game(file : UploadFile = File(...), begins : str = ""):
     response = requests.post(f"http://{next}/UploadGame", files={"file": open(path + f"/{file.filename}", "rb")}, params = {"begins" : begins}).json()
     return response
 
+@server_routes.on_event("startup")
+def present_yourself():
+    print("******************ME PRESENTO***************")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    mensaje = b"Hola a todos"
+    sock.sendto(mensaje, ('<broadcast>', 12345))
+
+@server_routes.on_event("startup")
+@repeat_every(seconds = 5)
+def Listen():
+    print("**************ESTOY ESCUCHANDO***********")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(('', 12345))
+    mensaje, direccion = socket.recvfrom(1024)
+    print(f"Mensaje recibido: {mensaje.decode()} de {direccion}")
+    
 
 @server_routes.get("/GetTournamentData")
 def get_tournament_data(tour_name:str, who_asks:str):

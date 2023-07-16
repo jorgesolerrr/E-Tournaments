@@ -10,4 +10,4 @@ WORKDIR /app
 
 COPY . .
 
-CMD [ "python", "netManager.py" ]
+CMD [ "python", "test.py" ]
