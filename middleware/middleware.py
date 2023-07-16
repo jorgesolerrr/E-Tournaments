@@ -47,18 +47,18 @@ class Middleware:
                                         ports={f'{port}/tcp': ("127.0.0.1", port)},
                                         volumes=volumes,
                                         command=cmd,
-                                        network = "mi_red",
+                                        #network = "mi_red",
                                     )
-            # server_info = docker_client.api.inspect_container(tour_server.id)
-            # server_ip = server_info['NetworkSettings']['IPAddress']
-            # self.servers.append({"ip" : server_ip, "port" : port})
+            server_info = docker_client.api.inspect_container(tour_server.id)
+            server_ip = server_info['NetworkSettings']['IPAddress']
+            self.servers.append({"ip" : server_ip, "port" : port})
         
-        network = docker_client.networks.get("mi_red")
-        network_info = network.attrs
-        containers = network_info['Containers']
-        for container_id, container_info in containers.items():
-            ip_address = container_info['IPv4Address']
-            self.servers.append({"ip" : ip_address, "port" : port})
+        # network = docker_client.networks.get("mi_red")
+        # network_info = network.attrs
+        # containers = network_info['Containers']
+        # for container_id, container_info in containers.items():
+        #     ip_address = container_info['IPv4Address']
+        #     self.servers.append({"ip" : ip_address, "port" : port})
 
         ports = self._get_availables_ports(self.matchServer_amount)
         if len(self.match_servers) == 0:
@@ -131,6 +131,7 @@ class Middleware:
 def main():
      mdw = Middleware()
     
+main()
 #     players = [
 #     {
 #       "id": 0,
@@ -156,7 +157,6 @@ def main():
 #   ]
 #     mdw.CreateTournament("LaChampions", "playoffs", {"amount_players": 2, "name": "TicTacToe"}, players)
 #     mdw.executeTournament("LaChampions")
-#main()
 
 
 # {
