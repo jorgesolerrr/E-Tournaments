@@ -14,8 +14,11 @@ import sys
 from os import getcwd, listdir
 import os
 import socket
+import logging
 
 
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 server_routes = FastAPI()
 tournaments = {}
@@ -91,7 +94,7 @@ def execute(background : BackgroundTasks,name: str, firstTime : bool):
 
 
 @server_routes.post("/SetTableConnection")
-def set_table_connection(response : Response, url : Url):
+def set_table_connection(url : Url):
     
     with open("./table_connection.json") as table:
         table_json = json.load(table)
@@ -100,12 +103,10 @@ def set_table_connection(response : Response, url : Url):
     with open("./table_connection.json", "w") as table:
         json.dump(table_json, table)
 
-    response.headers["Connection"] = "close"
     return "success"
 
 @server_routes.post("/AddTourServer")
-def add_server(url : Url):
-    url = f"{url.ip}:{url.port}"
+def add_server(url : str):
     with open('./table_connection.json') as table_file:
         table = json.load(table_file)
     
@@ -165,6 +166,7 @@ def add_server(url : Url):
 def get_node_connection(position: str):
     with open('./table_connection.json') as table_file:
         table = json.load(table_file)
+        table_file.close()
     aux = table[position]
     print(aux)
     with open('./table_connection.json', 'w') as table_file:
@@ -482,21 +484,55 @@ async def Upload_game(file : UploadFile = File(...), begins : str = ""):
 
 @server_routes.on_event("startup")
 def present_yourself():
-    print("******************ME PRESENTO***************")
+    logger.info("******************ME PRESENTO***************")
+    my_adress = get_node_connection("current")
+    logger.info(f"el puerto por el que estoy expuesto es {my_adress}")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    mensaje = b"Hola a todos"
-    sock.sendto(mensaje, ('<broadcast>', 12345))
+    mensaje = f"Hola a todos soy,{my_adress}"
+    sock.sendto(mensaje.encode(), ('<broadcast>', 12345))
+    sock.close()
+   
 
 @server_routes.on_event("startup")
 @repeat_every(seconds = 5)
 def Listen():
-    print("**************ESTOY ESCUCHANDO***********")
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(('', 12345))
-    mensaje, direccion = socket.recvfrom(1024)
-    print(f"Mensaje recibido: {mensaje.decode()} de {direccion}")
+    logger.info("**************ESTOY ESCUCHANDO***********")
     
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.bind(('', 12345))
+    except Exception as e:
+        logger.error("NO PUDE HACER BIND : " + str(e))
+        sock.close()
+        return
+    logger.info("LOGRE HACER BIND")
+    mensaje, direccion = sock.recvfrom(1024)
+    mensaje = mensaje.decode()
+    if mensaje == "Aceptado":
+        sock.close
+        return
+    if mensaje == "No Aceptado":
+        present_yourself()
+    if "Hola a todos" in mensaje:
+        address = mensaje.split(",")[1]
+        #añadiendo servidor al anillo
+        try:
+            response = requests.post(f"http://{address}/AddTourServer", params={"url" : address})
+            back_message = b"Aceptado"
+        except Exception as e:
+            logger.error(f"NO PUDE AÑADIR A : {address} AL ANILLO -----> {str(e)}")
+            back_message = b"No Aceptado"
+
+        sock.sendto(back_message, direccion)
+    #caso en que esté yo solo en la red, no sé si es que el tipo recibe mensaje vacío
+    if mensaje == "":
+        if env.leader == "":
+            my_adress = get_node_connection("current")
+            env.set_leader(my_adress)
+    
+    sock.close()
+            
 
 @server_routes.get("/GetTournamentData")
 def get_tournament_data(tour_name:str, who_asks:str):
@@ -514,12 +550,18 @@ server_routes.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-        
+
+    
+    
+
 if __name__ == "__main__":
-    #host = socket.gethostbyname(socket.gethostname())
     try: 
         arg1 = int(sys.argv[1])
     except:
         arg1 = 5010
+
+    host = socket.gethostbyname(socket.gethostname())
+    logger.info("SOY: " + host)
+    set_table_connection(Url(ip=host, port=arg1))
     uvicorn.run("server_routes:server_routes", host="0.0.0.0", port=arg1, reload=True)
     print("hola")
