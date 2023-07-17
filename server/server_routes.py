@@ -496,27 +496,79 @@ def present_yourself():
     logger.info("******************ME PRESENTO***************")
     my_adress = get_node_connection("current")
     logger.info(f"el puerto por el que estoy expuesto es {my_adress}")
+
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+
+    listen = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    listen.bind(('', 50000))
+
+
     mensaje = f"Hola a todos soy,{my_adress}"
-    sock.sendto(mensaje.encode(), ('<broadcast>', 12345))
+    retries = 10
+    count = 0
+    while count <= retries: 
+        sock.sendto(mensaje.encode(), ('<broadcast>', 12345))
+        listen.settimeout(6)
+        try:
+            logger.info("**********ESPERANDO RESPUESTA DEL LIDER*******")
+            msg, direccion = listen.recvfrom(1024)
+            msg = msg.decode()
+            logger.info(f"*************EL LÍDER RESPONDIÓ {msg}*********")
+            add_server(msg)
+            return
+        except Exception as e:
+            count = count + 1
+    
+    logger.info("*********SOY EL LÍDER*********")
+    env.set_leader(my_adress)
+    listen.close()
     sock.close()
-   
+
+# @server_routes.on_event("startup")
+# def NoLeader():
+#     time.sleep(8)
+#     logger.info(f"*************{e}********")
+#     logger.info("*********SOY EL LÍDER*********")
+#     env.set_leader(my_adress)
+#     listen.close()
+# @server_routes.on_event("startup")
+# def WaitForLeader():
+#     my_adress = get_node_connection("current")
+#     logger.info("**********ESPERANDO RESPUESTA DEL LIDER*******")
+#     listen = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#     listen.bind(('', 50000))
+#     try:
+#         msg, direccion = sock.recvfrom(1024)
+#         msg = mensaje.decode()
+#         logger.info(f"*************EL LÍDER RESPONDIÓ {msg}*********")
+#         add_server(msg)
+#     except Exception as e:
+#         logger.info(f"*************{e}********")
+#         logger.info("*********SOY EL LÍDER*********")
+#         env.set_leader(my_adress)
+#     listen.close()
+
 
 @server_routes.on_event("startup")
 @repeat_every(seconds = 5)
 def Listen():
     my_adress = get_node_connection("current")
-    if env.leader == "":
-        env.set_leader(my_adress)
-        return
     #en caso de que no seas el lider no escuches
+    # if env.leader == "":
+    #     env.set_leader(my_adress)
+    #     return
     if env.leader != my_adress:
         return
 
     logger.info("**************ESTOY ESCUCHANDO***********")
     
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    talker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    talker.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     try:
         sock.bind(('', 12345))
     except Exception as e:
@@ -524,33 +576,44 @@ def Listen():
         sock.close()
         return
     logger.info("LOGRE HACER BIND")
-    mensaje, direccion = sock.recvfrom(1024)
-    mensaje = mensaje.decode()
-    if mensaje == "Aceptado":
-        logger.info("ACEPTADO")
-        sock.close
-        return
-    if mensaje == "No Aceptado":
-        logger.info("NO ACEPTADO")
-        present_yourself()
-    if "Hola a todos" in mensaje:
-        logger.info(mensaje)
-        address = mensaje.split(",")[1]
-        #añadiendo servidor al anillo
-        try:
-            response = requests.post(f"http://{address}/AddTourServer", params={"url" : env.leader})
-            back_message = b"Aceptado"
-        except Exception as e:
-            logger.error(f"NO PUDE AÑADIR A : {address} AL ANILLO -----> {str(e)}")
-            back_message = b"No Aceptado"
+    try:
+        sock.settimeout(4)
+        mensaje, direccion = sock.recvfrom(1024)
+        logger.info("*****RECIBI UN MENSAJE*****")
+        mensaje = mensaje.decode()
 
-        sock.sendto(back_message, direccion)
+
+        if mensaje == "Aceptado":
+            logger.info("ACEPTADO")
+            sock.close()
+            return
+        if mensaje == "No Aceptado":
+            logger.info("NO ACEPTADO")
+            present_yourself()
+        if "Hola a todos" in mensaje:
+            logger.info(mensaje)
+            address = mensaje.split(",")[1]
+            #añadiendo servidor al anillo
+            try:
+               
+                msg = env.leader
+                talker.sendto(msg.encode(), ('<broadcast>', 50000))
+                
+            except Exception as e:
+                logger.error(f"NO PUDE AÑADIR A : {address} AL ANILLO -----> {str(e)}")
+                back_message = b"No Aceptado"
+    except:
+        sock.close()
+        talker.close()
+        return
+        #sock.sendto(back_message, direccion)
     #caso en que esté yo solo en la red, no sé si es que el tipo recibe mensaje vacío
     # if mensaje == "":
     #     if env.leader == "":
     #         env.set_leader(my_adress)
     
     sock.close()
+    talker.close()
             
 
 @server_routes.get("/GetTournamentData")
