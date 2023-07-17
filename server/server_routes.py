@@ -455,9 +455,13 @@ def find_available_server():
         else:
             return ""
 
+def send_file(url, file, begins):
+    response = requests.post(f"http://{url}/UploadGame", files={"file":  file}, params = {"begins" : begins})
+    return response
+
 @server_routes.post("/UploadGame")
 async def Upload_game(file : UploadFile = File(...), begins : str = ""):
-    print("***************ENTRE A SUBIR UN .py")
+    logger.info("***************ENTRE A SUBIR UN .py")
     #! quitar server del path
     path = "./games"
     next = get_node_connection("next1")
@@ -465,21 +469,26 @@ async def Upload_game(file : UploadFile = File(...), begins : str = ""):
 
     if len(begins) == 0:
         begins = current
-    elif current == begins:
-        return True
 
     content = await file.read()
     time.sleep(1)
     if not file.filename in listdir(path):   
         with open(path + f"/{file.filename}","wb") as pyFile:
-            print("***************ESTOY GUARDANDO EL ARCHIVO")
+            logger.info("***************ESTOY GUARDANDO EL ARCHIVO")
             pyFile.write(content)
             time.sleep(1)
             pyFile.close()
+
+    if begins == next:
+        return True
+    
     if len(next) == 0:
         return True
-    print("***************SE LO VOY A MANDAR A---------> " + next)
-    response = requests.post(f"http://{next}/UploadGame", files={"file": content}, params = {"begins" : begins}).json()
+    logger.info("***************SE LO VOY A MANDAR A---------> " + next)
+    try:
+        response = requests.post(f"http://{next}/UploadGame", files={"file":  open(path + f"/{file.filename}","rb")}, params = {"begins" : begins}).json()
+    except Exception as e:
+        logger.error("ERROR ENVIANDO EL ARCHIVO A: " + next + "----> " + str(e))
     return response
 
 @server_routes.on_event("startup")
@@ -498,10 +507,10 @@ def present_yourself():
 @repeat_every(seconds = 5)
 def Listen():
     my_adress = get_node_connection("current")
-    #en caso de que no seas el lider no escuches
     if env.leader == "":
         env.set_leader(my_adress)
         return
+    #en caso de que no seas el lider no escuches
     if env.leader != my_adress:
         return
 
@@ -526,10 +535,10 @@ def Listen():
         present_yourself()
     if "Hola a todos" in mensaje:
         logger.info(mensaje)
-        address = mensaje.split(":")[1]
+        address = mensaje.split(",")[1]
         #añadiendo servidor al anillo
         try:
-            response = requests.post(f"http://0.0.0.0:{address}/AddTourServer", params={"url" : env.leader})
+            response = requests.post(f"http://{address}/AddTourServer", params={"url" : env.leader})
             back_message = b"Aceptado"
         except Exception as e:
             logger.error(f"NO PUDE AÑADIR A : {address} AL ANILLO -----> {str(e)}")
@@ -573,5 +582,5 @@ if __name__ == "__main__":
     host = socket.gethostbyname(socket.gethostname())
     logger.info("SOY: " + host)
     set_table_connection(Url(ip=host, port=arg1))
-    uvicorn.run("server_routes:server_routes", host="0.0.0.0", port=arg1, reload=True)
+    uvicorn.run("server_routes:server_routes", host="0.0.0.0", port=arg1, reload=False)
     print("hola")

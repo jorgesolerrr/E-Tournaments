@@ -47,8 +47,8 @@ class Middleware:
                                         ports={f'{port}/tcp': ("127.0.0.1", port)},
                                         volumes=volumes,
                                         command=cmd,
-                                        #network = "mi_red",
                                     )
+                                        #network = "mi_red",
             server_info = docker_client.api.inspect_container(tour_server.id)
             server_ip = server_info['NetworkSettings']['IPAddress']
             self.servers.append({"ip" : server_ip, "port" : port})
@@ -128,9 +128,10 @@ class Middleware:
         return tournament[1]
 
 def main():
-     mdw = Middleware()
+    mdw = Middleware()
     
 main()
+
 #     players = [
 #     {
 #       "id": 0,
