@@ -1,4 +1,8 @@
 import docker
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 class Server_env:
     def __init__(self):
@@ -8,6 +12,15 @@ class Server_env:
     
     def set_port(self, port):
         self.current_port = port
+
+    def set_env(self, data):
+        logger.info(str(data))
+        for i in range(len(data["ip"])):
+            self.match_servers.append((data["ip"][i], data["port"][i]))
+
+
+            
+
     def set_leader(self, url : str):
         self.leader = url
     

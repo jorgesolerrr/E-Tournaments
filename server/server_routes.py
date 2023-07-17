@@ -47,14 +47,14 @@ async def SetEnv(request:Request):
 
 @server_routes.post("/create_tournament")
 def create_tournament(tournament : Tournament_Schema):
-    path = getcwd() + "/games"
-    if not f"{tournament.game.name}.py" in listdir(path):
-        return JSONResponse(content={"error": f"The code of game {tournament.game.name} doesn't exist, please provide the code"}, status_code=404)
+    # path = getcwd() + "/games"
+    # if not f"{tournament.game.name}.py" in listdir(path):
+    #     return JSONResponse(content={"error": f"The code of game {tournament.game.name} doesn't exist, please provide the code"}, status_code=404)
      
 
 
     currentTournament = tournaments_types[tournament.type](env, name = tournament.name, game = tournament.game, type = tournament.type, players=tournament.players)
-    currentTournament.UpdateCurrentData()
+    currentTournament.AddTournamentToData()
     tournaments[tournament.name] = currentTournament
     return "success"
 

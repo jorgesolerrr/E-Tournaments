@@ -9,6 +9,11 @@ import json
 import docker 
 import time
 import random
+import logging
+
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class Tournament(ABC):
@@ -68,8 +73,25 @@ class Tournament(ABC):
         response = requests.post(f"http://{data_json['next1']}/UpdateData")
         with open("./table_connection.json", "w") as table_file:
             json.dump(data_json, table_file)
+            table_file.close()
+
+    def AddTournamentToData(self):
+        logger.info("ESTOY AÑADIENDO UN TORNEO A LA DATA")
+        with open("./current_tour_data.json") as cdata_file:
+            data_json = json.load(cdata_file)
+            cdata_file.close()
+        
+        tour_data = jsonable_encoder(self.tournament_data)
+        data_json["tournaments"].append(tour_data)
+
+        with open("./current_tour_data.json", "w") as cdata_file:
+            json.dump(data_json, cdata_file)
+            cdata_file.close()
+        
+        self.sendData()
 
     def UpdateCurrentData(self):
+        logger.info("ESTOY ACTUALIZANDO MI DATA")
         with open("./current_tour_data.json") as cdata_file:
             data_json = json.load(cdata_file)
             cdata_file.close()
@@ -82,8 +104,10 @@ class Tournament(ABC):
                 print(dict(self.tournament_data))
                 print("***************************************")
                 break
+        
         with open("./current_tour_data.json", "w") as cdata_file:
             json.dump(data_json, cdata_file)
+            cdata_file.close()
         self.sendData()
 
     def update_missing_matches(self, finished_matches):
@@ -114,9 +138,12 @@ class Tournament(ABC):
                 current_exec_matches_schema = [match[0] for match in self.executed_matches[match_server]]
             except KeyError:
                 continue
-            active = requests.get(f"http://{match_server[0]}:{match_server[1]}/active")
-            if not active :
-                self.matches.extend(current_exec_matches)
+            try:
+                active = requests.get(f"http://{match_server[0]}:{match_server[1]}/active")
+            except:
+                logger.error("ERROR TRATANDO DE CONECTARME CON :" + str(match_server))
+                continue
+            
             finished_matches = requests.get(f"http://{match_server[0]}:{match_server[1]}/executed_matches/{self.name}").json()
             print(f"--------> PARTIDAS EJECUTADAS EN EL SERVIDOR {match_server}")
             print(finished_matches)
@@ -228,88 +255,82 @@ class League(Tournament):
         return True
 
     def Execute(self, firstTime):
-        print("**************************************"+ str(firstTime))
-        if firstTime:
-            with open("./current_tour_data.json") as cdata_file:
-                data_json = json.load(cdata_file)
-                cdata_file.close()
-            tour_data = jsonable_encoder(self.tournament_data)
-            data_json["tournaments"].append(tour_data)
-            self.sendData()
-            with open("./current_tour_data.json", "w") as cdata_file:
-                json.dump(data_json, cdata_file)
-        else:
-            self.player_status = { player.id : False for player in self.players }
-        
-        client = docker.from_env()
-        count = 0
-        while (len(self.matches) > 0) or (self.checkWinners()):
-            if len(self.matches) > 0:
-                for match_server in self.env.match_servers:
-                    # try:
-                    try:
-                        response = requests.get(f"http://{match_server[0]}:{match_server[1]}/active").json()
+        try:
+            if not firstTime:
+                self.player_status = { player.id : False for player in self.players }
+            
+            count = 0
+            while (len(self.matches) > 0) or (self.checkWinners()):
+                if len(self.matches) > 0:
+                    for match_server in self.env.match_servers:
+                        # try:
+                        try:
+                            response = requests.get(f"http://{match_server[0]}:{match_server[1]}/active").json()
+                        except Exception as e:
+                            logger.error("ERRORRRR-----------------------> " + str(e))
+                            count += 1
+                            self.matches.extend(self.executed_matches[match_server])
+                            if count == len(self.env.match_servers):
+                                raise Exception("Los servidores de partida estan caidos")
+                            self.env.match_servers.remove(match_server)
+                            continue
                         if match_server not in self.executed_matches.keys():
                             self.executed_matches[match_server] = []
-                    except Exception as e:
-                        print("ERRORRRR-----------------------> " + str(e))
-                        count += 1
-                        self.matches.extend(self.executed_matches[match_server])
-                        if count == len(self.env.match_servers):
-                            raise Exception("Los servidores de partida estan caidos")
-                        continue
-                    #     print(response)
-                    # except:
-                    #     #el servidor de partidas fallo por alguna razon
-                    #     self.env.add_match_server(match_server[1])
-                    #     continue
-                    
-                    # if response["available"]:
-                    match = None
-                    for i in range(len(self.matches)):
-                        if self._checkAvailablePlayers(self.matches[i]):
-                            match = self.matches.pop(i)
-                            print("**********MATCH**********")
-                            print(match)
-                            print("*************************")
-                            break
-                    
-                    if match is None:
-                        print(self.player_status)
-                        continue
+                        #     print(response)
+                        # except:
+                        #     #el servidor de partidas fallo por alguna razon
+                        #     self.env.add_match_server(match_server[1])
+                        #     continue
+                        
+                        # if response["available"]:
+                        match = None
+                        for i in range(len(self.matches)):
+                            if self._checkAvailablePlayers(self.matches[i]):
+                                match = self.matches.pop(i)
+                                print("**********MATCH**********")
+                                print(match)
+                                print("*************************")
+                                break
+                        
+                        if match is None:
+                            print(self.player_status)
+                            continue
 
-                    print(f"Ejecutando partida: {match.id} del Torneo : {self.name}, en puerto {match_server[1]}")
-                    match_json = jsonable_encoder(match)
+                        print(f"Ejecutando partida: {match.id} del Torneo : {self.name}, en puerto {match_server[1]}")
+                        match_json = jsonable_encoder(match)
+                        
+                        response = requests.post(f"http://{match_server[0]}:{match_server[1]}/play_match", json=match_json).json()
+                        
+                        print("************ME VOY A ACOSTAR A DORMIR 5 SEC")
+                        time.sleep(5)
+                        print("************ME DESPERTÉ")
+
+                        # self.UpdateCurrentData()
+                        self.executed_matches[match_server].append([match, False])
+                        # self.winners.append(requests.get(f"http://{match_server[0]}:{match_server[1]}/winners/{self.name}/{match.id}").json())
+                        # self.process_score(self.winners,False)
+                        # self.winners.clear()
+                        self.SetPlayerStatus(match, True)
+                        print("**************VOY A CHEQUEAR SI HAY PARTIDAS TERMINADAS")
+                        end = self.checkWinners()
+                        self.UpdateCurrentData()
+
                     
-                    response = requests.post(f"http://{match_server[0]}:{match_server[1]}/play_match", json=match_json).json()
-                    
-                    print("************ME VOY A ACOSTAR A DORMIR 5 SEC")
-                    time.sleep(5)
-                    print("************ME DESPERTÉ")
+            
+            # self.score = {player.id : 0 for player in self.players}
+            # self.process_score(self.winners, end=True)
+            # self.UpdateCurrentData()
+            # print("*********SCORE********")
+            # print(self.score)
+            # print("**********************")
+            
+            self.setWinner()
+            self.finished = True
 
-                    # self.UpdateCurrentData()
-                    self.executed_matches[match_server].append([match, False])
-                    # self.winners.append(requests.get(f"http://{match_server[0]}:{match_server[1]}/winners/{self.name}/{match.id}").json())
-                    # self.process_score(self.winners,False)
-                    # self.winners.clear()
-                    self.SetPlayerStatus(match, True)
-                    print("**************VOY A CHEQUEAR SI HAY PARTIDAS TERMINADAS")
-                    end = self.checkWinners()
-                    self.UpdateCurrentData()
-
-                
-        
-        # self.score = {player.id : 0 for player in self.players}
-        # self.process_score(self.winners, end=True)
-        # self.UpdateCurrentData()
-        # print("*********SCORE********")
-        # print(self.score)
-        # print("**********************")
-        
-        self.setWinner()
-        self.finished = True
-
-        return "finished"
+            return "finished"
+        except Exception as e:
+            logger.error("ERROR EJECUTANDO EL TORNEO : " + str(e))
+            return "ERROR"
                 
 
 class Playoffs(Tournament):
