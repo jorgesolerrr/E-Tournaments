@@ -50,8 +50,6 @@ def create_tournament(tournament : Tournament_Schema):
     # path = getcwd() + "/games"
     # if not f"{tournament.game.name}.py" in listdir(path):
     #     return JSONResponse(content={"error": f"The code of game {tournament.game.name} doesn't exist, please provide the code"}, status_code=404)
-     
-
 
     currentTournament = tournaments_types[tournament.type](env, name = tournament.name, game = tournament.game, type = tournament.type, players=tournament.players)
     currentTournament.AddTournamentToData()
@@ -91,6 +89,22 @@ def execute(background : BackgroundTasks,name: str, firstTime : bool):
     
     response = jsonable_encoder(response)
     return response
+
+
+
+
+@server_routes.post("/addMatchServer")
+def add_match_server(url : str, begin = ""):
+    env.add_match_server(url)
+    next = get_node_connection("next1")
+    current = get_node_connection("current")
+    if begin == "":
+        begin = current
+    
+    if next == begin:
+        return True
+    return requests.post(f"http://{next}/addMatchServer", params={"url" : url, "begin" : begin})
+
 
 
 @server_routes.post("/SetTableConnection")
@@ -455,10 +469,6 @@ def find_available_server():
         else:
             return ""
 
-def send_file(url, file, begins):
-    response = requests.post(f"http://{url}/UploadGame", files={"file":  file}, params = {"begins" : begins})
-    return response
-
 @server_routes.post("/UploadGame")
 async def Upload_game(file : UploadFile = File(...), begins : str = ""):
     logger.info("***************ENTRE A SUBIR UN .py")
@@ -518,6 +528,8 @@ def present_yourself():
             msg = msg.decode()
             logger.info(f"*************EL LÍDER RESPONDIÓ {msg}*********")
             add_server(msg)
+            sock.close()
+            listen.close()
             return
         except Exception as e:
             count = count + 1
@@ -526,30 +538,6 @@ def present_yourself():
     env.set_leader(my_adress)
     listen.close()
     sock.close()
-
-# @server_routes.on_event("startup")
-# def NoLeader():
-#     time.sleep(8)
-#     logger.info(f"*************{e}********")
-#     logger.info("*********SOY EL LÍDER*********")
-#     env.set_leader(my_adress)
-#     listen.close()
-# @server_routes.on_event("startup")
-# def WaitForLeader():
-#     my_adress = get_node_connection("current")
-#     logger.info("**********ESPERANDO RESPUESTA DEL LIDER*******")
-#     listen = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#     listen.bind(('', 50000))
-#     try:
-#         msg, direccion = sock.recvfrom(1024)
-#         msg = mensaje.decode()
-#         logger.info(f"*************EL LÍDER RESPONDIÓ {msg}*********")
-#         add_server(msg)
-#     except Exception as e:
-#         logger.info(f"*************{e}********")
-#         logger.info("*********SOY EL LÍDER*********")
-#         env.set_leader(my_adress)
-#     listen.close()
 
 
 @server_routes.on_event("startup")
