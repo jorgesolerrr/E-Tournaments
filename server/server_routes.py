@@ -8,8 +8,7 @@ from fastapi_utils.tasks import repeat_every
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import Url, Table_Connection, Tournament_Schema, Tournament_data, Ports, Stats_Schema, Tournament_State, Player_Schema
 from server_enviroment import Server_env
-from games import IGame, isIGame
-from players import IPlayer, isIPlayer
+from Interfaces import IGame, isIGame, IPlayer, isIPlayer
 import requests
 import json
 from tournaments import League, Playoffs
@@ -59,7 +58,7 @@ def create_tournament(tournament : Tournament_Schema):
 
     available_players = listdir(players_path)
     for player in tournament.players:
-        if player.type not in available_players:
+        if f"{player.type}.py" not in available_players:
             return JSONResponse(content={"error": f"The code of player {player.id} doesn't exist, please provide the code"}, status_code=404)
     
     currentTournament = tournaments_types[tournament.type](env, name = tournament.name, game = tournament.game, type = tournament.type, players=tournament.players)
@@ -181,7 +180,9 @@ def add_server(url : str):
     env.leader = leader
     matches = requests.get(f"http://{url}/GetMatches").json()
     env.match_servers = matches
-    
+    response = requests.post(f"http://{leader}/SendGamePlayersCode", params={"url_to_send" : table["current"]}).json()
+
+        
 
 
     #voy a replicar el table propio de mi antecesor
@@ -240,6 +241,31 @@ def isconnect(url_to_search: str, who_asks):
         json.dump(table, table_file)
     #current busco en el endpoint de este método en mi next2
     return (requests.get(f'http://{next}/IsConnect', params= {"url_to_search": url_to_search, "who_asks": who_asks})).json()
+
+
+@server_routes.post("/SendGamePlayersCode")
+def send_game_players(url_to_send : str):
+    path_games = "./games"
+    path_players = "./players"
+
+    for game in listdir(path_games):
+        try:
+            response = requests.post(f"http://{url_to_send}/UploadCode", files={"file":  open(path_games + f"/{game}", "rb")}, params = {"begins" : "", "game" : True, "all" : False}).json()
+        except Exception as e:
+            logger.error(f"No pude subir el archivo {game} a {url_to_send} -----> {str(e)}")
+        if not response or "error" in response.keys():
+            logger.error(f"No pude subir el archivo {game} a {url_to_send}")
+
+    for player in listdir(path_players):
+        try:
+            response = requests.post(f"http://{url_to_send}/UploadCode", files={"file":  open(path_players + f"/{player}", "rb")}, params = {"begins" : "", "game" : False, "all" : False}).json()
+        except Exception as e:
+            logger.error(f"No pude subir el archivo {player} a {url_to_send} -----> {str(e)}")
+        if not response or "error" in response.keys():
+            logger.error(f"No pude subir el archivo {player} a {url_to_send}")
+        
+    return "finished"
+
 
 
 @server_routes.get("/GetServerData")
@@ -489,8 +515,8 @@ def getMatches():
     return env.match_servers
 
 
-@server_routes.post("/UploadGame")
-async def Upload_game(file : UploadFile = File(...), begins : str = "", game : bool = True):
+@server_routes.post("/UploadCode")
+async def Upload_game(file : UploadFile = File(...), begins : str = "", game : bool = True, all : bool = True):
     logger.info("***************ENTRE A SUBIR UN .py")
     #! quitar server del path
     path = ""
@@ -544,7 +570,9 @@ async def Upload_game(file : UploadFile = File(...), begins : str = "", game : b
         return True
     logger.info("***************SE LO VOY A MANDAR A---------> " + next)
     try:
-        response = requests.post(f"http://{next}/UploadCode", files={"file":  open(path + f"/{file.filename}","rb")}, params = {"begins" : begins, "game" : game}).json()
+        response = True
+        if all:
+            response = requests.post(f"http://{next}/UploadCode", files={"file":  open(path + f"/{file.filename}","rb")}, params = {"begins" : begins, "game" : game, "all" : all}).json()
     except Exception as e:
         logger.error("ERROR ENVIANDO EL ARCHIVO A: " + next + "----> " + str(e))
     return response
@@ -561,8 +589,11 @@ def present_yourself():
 
 
     listen = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    listen.bind(('', 50000))
-
+    try:
+        listen.bind(('', 50000))
+    except Exception as e:
+        logger.error(f"NO PUDE HACER BIND ----> {str(e)}")
+        return present_yourself()
 
     mensaje = f"Hola a todos soy,{my_adress}"
     retries = 10
@@ -675,7 +706,7 @@ def Listen():
         logger.error("NO PUDE HACER BIND : " + str(e))
         sock.close()
         return
-    logger.info("LOGRE HACER BIND")
+    #logger.info("LOGRE HACER BIND")
     try:
         sock.settimeout(4)
         mensaje, direccion = sock.recvfrom(1024)

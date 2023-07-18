@@ -1,7 +1,5 @@
 from fastapi import FastAPI, BackgroundTasks
 from schemas import Match_Schema
-from Games import TicTacToe, IGame
-from Players import Random_Player
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
 import uvicorn
@@ -16,24 +14,46 @@ logger = logging.getLogger(__name__)
 match_server = FastAPI()
 match_server.port =str(sys.argv[1])
 
-availables_games = {
-    "TicTacToe": TicTacToe
-}
-
-availables_players = {
-    "random" : Random_Player
-}
 executed_matches = {}
 
 
 available = True
 
 def _playMatch(match : Match_Schema):
+    try: 
+        exec(match.game_code)
+    except Exception as e:
+        logger.error(f"Error ejecutando el codigo de {match.game.name} ---> {str(e)}")
+        return
     
-    current_game : IGame = availables_games[match.game.name]()
+    for player_code in match.players_code:
+        try: 
+            exec(player_code)
+        except Exception as e:
+            logger.error(f"Error ejecutando el codigo de uno de los Players ---> {str(e)}")
+            return
+    
+    local_vars = locals()
+    try :
+        current_game = local_vars[match.game.name]
+    except KeyError:
+        logger.error("El nombre de la clase debe coincidir con el nombre del juego")
+        return
+    
+    availables_players = {}
+    for player in match.players:
+        try:
+            availables_players[player.type] = local_vars[player.type]
+        except KeyError:
+            logger.error("El nombre de la clase debe coincidir con el tipo de jugador")
+            return
+    
+
+
+    current_game  = type(current_game).__call__(current_game)
     players = []
     for player in match.players:
-        players.append((availables_players[player.type](), player.id))
+        players.append((type(availables_players[player.type]).__call__(availables_players[player.type]), player.id))
     
     current_game.SetState(players, players[0][0])
     while not current_game.GameEnd():
@@ -62,19 +82,7 @@ def PlayMatch(match : Match_Schema,
         aux = executed_matches[match.tournament_name]
     except KeyError:
         executed_matches[match.tournament_name] = {}
-        
-    if not (match.game.name in availables_games):
-        response = {
-            "error": "This game is not available"
-        }
-        available = False
-        return jsonable_encoder(response)
-    for player in match.players:
-        if not (player.type in availables_players):
-            response = {
-                "error": "This game is not available"
-            }
-            return jsonable_encoder(response)
+    
     try:
         background.add_task(_playMatch, match)
         print(f"Ejecutando partida : {match.id}")
@@ -126,7 +134,7 @@ def Login():
         logger.info(msg)
         log.sendto(msg.encode(), ('<broadcast>', 60000))
         try:
-            logger.info("***LLEGUE AQUI****")
+            
             lis.bind(('', 50400))
         except Exception as e:
             logger.info(f"*****PUERTO POSIBLEMENTE OCUPADO*************{str(e)}*************")

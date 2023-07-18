@@ -47,7 +47,21 @@ class Tournament(ABC):
             self.tournament_data = tournament_data
             self.executed_matches = {}
 
+
         self.env = env
+        with open("./games" + f"/{self.game.name}.py", "r") as f:
+            content = f.read()
+            f.close()
+        self.game_code = content
+        self.players_code = {}
+        for player in self.players:
+            if player.type in self.players_code.keys():
+                continue
+            with open("./players" + f"/{player.type}.py", "r") as f:
+                content = f.read()
+                f.close()
+            self.players_code[player.type] = content
+
     @abstractmethod
     def CreateMatches(self):
         pass
@@ -86,7 +100,7 @@ class Tournament(ABC):
 
         with open("./current_tour_data.json", "w") as cdata_file:
             json.dump(data_json, cdata_file)
-            cdata_file.close()
+            cdata_file.close() 
         
         self.sendData()
 
@@ -239,7 +253,8 @@ class League(Tournament):
         match_players = combinations(self.players, self.game.amount_players)
         count = 0
         for current_players in match_players:
-            self.matches.append(Match_Schema(id=count, tournament_name=self.name, players=list(current_players), game=self.game))
+            players_code = set([self.players_code[player.type] for player in list(current_players)])
+            self.matches.append(Match_Schema(id=count, tournament_name=self.name, players=list(current_players), game=self.game, game_code=self.game_code, players_code=players_code))
             count+=1
 
     def SetPlayerStatus(self, match, status):
@@ -362,8 +377,9 @@ class Playoffs(Tournament):
             match_players.append(tuple(aux_1))
             aux.clear() 
         for current_players in match_players:
-            self.matches.append(Match_Schema(id=self.count, tournament_name=self.name, players=list(current_players), game=self.game))
-            self.count += 1
+            players_code = set([self.players_code[player.type] for player in list(current_players)])
+            self.matches.append(Match_Schema(id=self.count, tournament_name=self.name, players=list(current_players), game=self.game, game_code=self.game_code, players_code=players_code))
+        self.count += 1
 
     def process_score(self, winners, end = False):
         executed = False

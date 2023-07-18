@@ -26,6 +26,8 @@ class Match_Schema(BaseModel):
     tournament_name : str
     players : list[Player_Schema]
     game : Game_Schema
+    game_code : str
+    players_code : str
 
 class Stats_Schema(BaseModel):
     winners : list[Player_Schema]

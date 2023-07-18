@@ -41,25 +41,18 @@ class IGame(ABC):
     @abstractmethod
     def GetWinners(self):
         pass
+from os import getcwd
+def test():
+    with open(getcwd() + "/Games/TicTacToe.py", "r") as f:
+        content = f.read()
+        
+    exec(content)
+    locals_var = locals()
+    instance = type(locals_var["TicTacToe"])
+    print(instance.__call__(locals_var["TicTacToe"]))
 
+
+test()
 # Ruta del archivo que contiene el módulo
-ruta_modulo = getcwd() + "/Games/TicTacToe.py"
 
-#Nombre del módulo
-nombre_modulo = "TicTacToe"
-
-# Crea una especificación de módulo
-especificacion = importlib.util.spec_from_file_location(nombre_modulo, ruta_modulo)
-
-# Crea un objeto de módulo a partir de la especificación
-modulo = importlib.util.module_from_spec(especificacion)
-aux = inspect.getmembers(modulo)
-# Carga el módulo
-
-especificacion.loader.exec_module(modulo)
-# aux = inspect.getmembers(modulo, inspect.isclass)
-aux1 = inspect.getmembers(IGame, inspect.isfunction)
-inspect.ge
-aux1 = [func_name for func_name, func in aux1]
-print(aux1)
 # Usa la clase del módulo

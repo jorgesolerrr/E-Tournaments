@@ -4,6 +4,7 @@ class Game_Schema(BaseModel):
     amount_players : int
     name : str
 
+
 class Player_Schema(BaseModel):
     id : int
     type: str
@@ -13,6 +14,8 @@ class Match_Schema(BaseModel):
     tournament_name : str
     players : list[Player_Schema]
     game : Game_Schema
+    game_code : str
+    players_code : list[str]
 
 
 class Tournament_Schema(BaseModel):
