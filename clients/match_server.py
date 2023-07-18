@@ -8,7 +8,6 @@ import uvicorn
 import socket 
 import sys
 import logging
-import psutil
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -93,19 +92,6 @@ def PlayMatch(match : Match_Schema,
 def Check():
     return True
 
-def get_fastapi_url():
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-        if proc.info['name'] == 'uvicorn':
-            cmd = ' '.join(proc.info['cmdline'])
-            if 'match_server:match_server' in cmd:  # cambia esto por el nombre de tu archivo principal de FastAPI y la instancia de la aplicación
-                parts = cmd.split()
-                for i, part in enumerate(parts):
-                    if part == '--host':
-                        host = parts[i+1]
-                    elif part == '--port':
-                        port = parts[i+1]
-                return port
-    return None
 
 @match_server.get("/winners/{tournament}/{matchid}")
 def CheckWinners(tournament : str,matchid : int):
