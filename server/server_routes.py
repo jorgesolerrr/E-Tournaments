@@ -50,8 +50,6 @@ def create_tournament(tournament : Tournament_Schema):
     # path = getcwd() + "/games"
     # if not f"{tournament.game.name}.py" in listdir(path):
     #     return JSONResponse(content={"error": f"The code of game {tournament.game.name} doesn't exist, please provide the code"}, status_code=404)
-     
-
 
     currentTournament = tournaments_types[tournament.type](env, name = tournament.name, game = tournament.game, type = tournament.type, players=tournament.players)
     currentTournament.AddTournamentToData()
@@ -91,6 +89,22 @@ def execute(background : BackgroundTasks,name: str, firstTime : bool):
     
     response = jsonable_encoder(response)
     return response
+
+
+
+
+@server_routes.post("/addMatchServer")
+def add_match_server(url : str, begin = ""):
+    env.add_match_server(url)
+    next = get_node_connection("next1")
+    current = get_node_connection("current")
+    if begin == "":
+        begin = current
+    
+    if next == begin:
+        return True
+    return requests.post(f"http://{next}/addMatchServer", params={"url" : url, "begin" : begin})
+
 
 
 @server_routes.post("/SetTableConnection")
@@ -455,10 +469,6 @@ def find_available_server():
         else:
             return ""
 
-def send_file(url, file, begins):
-    response = requests.post(f"http://{url}/UploadGame", files={"file":  file}, params = {"begins" : begins})
-    return response
-
 @server_routes.post("/UploadGame")
 async def Upload_game(file : UploadFile = File(...), begins : str = ""):
     logger.info("***************ENTRE A SUBIR UN .py")
@@ -518,6 +528,8 @@ def present_yourself():
             msg = msg.decode()
             logger.info(f"*************EL LÍDER RESPONDIÓ {msg}*********")
             add_server(msg)
+            sock.close()
+            listen.close()
             return
         except Exception as e:
             count = count + 1
