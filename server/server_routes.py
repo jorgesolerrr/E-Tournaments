@@ -527,6 +527,42 @@ def present_yourself():
     listen.close()
     sock.close()
 
+@server_routes.on_event("startup")
+@repeat_every(seconds = 5)
+def LookForMatches():
+    my_adress = get_node_connection("current")
+    #en caso de que no seas el lider no escuches
+    # if env.leader == "":
+    #     env.set_leader(my_adress)
+    #     return
+    if env.leader != my_adress:
+        return
+    logger.info("**************LíDER BUSCANDO PARTIDAS***********")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    talker = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    talker.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    try:
+        sock.bind(('', 60000))
+    except Exception as e:
+        logger.error("NO PUDE HACER BIND : " + str(e))
+        sock.close()
+        return
+    try:
+        sock.settimeout(4)
+        mensaje, direccion = sock.recvfrom(1024)
+        mensaje = mensaje.decode()
+        logger.info(mensaje)
+        address = mensaje.split(",")[1]
+        logger.info(f"****NUEVO SERVIDOR DE PARTIDAS -> {address}*****")
+        #METODO OREJO
+        talker.sendto(address.encode(), ('<broadcast>', 60500))
+        
+    except Exception as e:
+        logger.info( f"**********{str(e)}************")
+    sock.close()
+    talker.close()
+        
+
 # @server_routes.on_event("startup")
 # def NoLeader():
 #     time.sleep(8)
