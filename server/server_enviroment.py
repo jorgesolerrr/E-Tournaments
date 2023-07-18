@@ -27,7 +27,7 @@ class Server_env:
     def add_match_server(self, url : str):
         ip, port = url.split(':')
         if (ip,port) in self.match_servers:
-            logger.warning("ESTAS INTENTANDO AÑADIR UN SERVIDOR QUE YA ESTABA")
+            logger.warning("ESTAS INTENTANDO AÑADIR UN SERVIDOR DE PARTIDA QUE YA ESTABA")
             return
         self.match_servers.append((ip, port))
         

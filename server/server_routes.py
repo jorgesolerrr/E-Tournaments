@@ -1,3 +1,5 @@
+import importlib.util
+import inspect
 import time
 from fastapi import FastAPI, Response, BackgroundTasks,Request, UploadFile, File
 from fastapi.responses import JSONResponse
@@ -6,6 +8,8 @@ from fastapi_utils.tasks import repeat_every
 from fastapi.middleware.cors import CORSMiddleware
 from schemas import Url, Table_Connection, Tournament_Schema, Tournament_data, Ports, Stats_Schema, Tournament_State, Player_Schema
 from server_enviroment import Server_env
+from games import IGame, isIGame
+from players import IPlayer, isIPlayer
 import requests
 import json
 from tournaments import League, Playoffs
@@ -15,6 +19,7 @@ from os import getcwd, listdir
 import os
 import socket
 import logging
+
 
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -28,7 +33,7 @@ available = True
 tournaments_types = {
     "league" : League,
     "playoffs" : Playoffs
-}   
+}
 def Available():
     for tournament in tournaments.keys():
         if not tournaments[tournament].finished:
@@ -47,10 +52,16 @@ async def SetEnv(request:Request):
 
 @server_routes.post("/create_tournament")
 def create_tournament(tournament : Tournament_Schema):
-    # path = getcwd() + "/games"
-    # if not f"{tournament.game.name}.py" in listdir(path):
-    #     return JSONResponse(content={"error": f"The code of game {tournament.game.name} doesn't exist, please provide the code"}, status_code=404)
+    games_path = getcwd() + "/games"
+    players_path = getcwd() + "/players"
+    if not f"{tournament.game.name}.py" in listdir(games_path):
+        return JSONResponse(content={"error": f"The code of game {tournament.game.name} doesn't exist, please provide the code"}, status_code=404)
 
+    available_players = listdir(players_path)
+    for player in tournament.players:
+        if player.type not in available_players:
+            return JSONResponse(content={"error": f"The code of player {player.id} doesn't exist, please provide the code"}, status_code=404)
+    
     currentTournament = tournaments_types[tournament.type](env, name = tournament.name, game = tournament.game, type = tournament.type, players=tournament.players)
     currentTournament.AddTournamentToData()
     tournaments[tournament.name] = currentTournament
@@ -469,11 +480,15 @@ def find_available_server():
         else:
             return ""
 
-@server_routes.post("/UploadGame")
-async def Upload_game(file : UploadFile = File(...), begins : str = ""):
+@server_routes.post("/UploadCode")
+async def Upload_game(file : UploadFile = File(...), begins : str = "", game : bool = True):
     logger.info("***************ENTRE A SUBIR UN .py")
     #! quitar server del path
-    path = "./games"
+    path = ""
+    if game:
+        path = "./games"
+    else:
+        path = "./players"
     next = get_node_connection("next1")
     current = get_node_connection("current")
 
@@ -488,6 +503,30 @@ async def Upload_game(file : UploadFile = File(...), begins : str = ""):
             pyFile.write(content)
             time.sleep(1)
             pyFile.close()
+    
+    if begins == current:
+        new_module_path = path + f"/{file.filename}"
+        module_name = file.filename.split(".")[0]
+        spec = importlib.util.spec_from_file_location(module_name, new_module_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module_class = inspect.getmembers(module, inspect.isclass)
+        find_class = False
+        for class_name, cls in module_class:
+            if game and isIGame(cls):
+                if class_name == module_name:
+                    find_class = True
+                    break
+                else:
+                    return JSONResponse(content={"error" : "La clase que implementa el juego debe tener el mismo nombre que el modulo"}, status_code=400)
+            elif (not game) and isIPlayer(cls):
+                if class_name == module_name:
+                    find_class = True
+                    break
+                else:
+                    return JSONResponse(content={"error" : "La clase que implementa el jugador debe tener el mismo nombre que el modulo"}, status_code=400)
+        if not find_class:
+            return JSONResponse(content={"error" : "En el módulo que se mandó no hay ninguna clase que implemente la interfaz requerida"}, status_code=400)
 
     if begins == next:
         return True
@@ -496,7 +535,7 @@ async def Upload_game(file : UploadFile = File(...), begins : str = ""):
         return True
     logger.info("***************SE LO VOY A MANDAR A---------> " + next)
     try:
-        response = requests.post(f"http://{next}/UploadGame", files={"file":  open(path + f"/{file.filename}","rb")}, params = {"begins" : begins}).json()
+        response = requests.post(f"http://{next}/UploadCode", files={"file":  open(path + f"/{file.filename}","rb")}, params = {"begins" : begins, "game" : game}).json()
     except Exception as e:
         logger.error("ERROR ENVIANDO EL ARCHIVO A: " + next + "----> " + str(e))
     return response

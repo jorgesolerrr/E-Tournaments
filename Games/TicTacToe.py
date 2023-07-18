@@ -1,7 +1,6 @@
 import numpy as np
-from .game_interface import IGame
 
-class TicTacToe(IGame):
+class TicTacToe:
     def __init__(self):
         super().__init__()
         self.p1 = None
