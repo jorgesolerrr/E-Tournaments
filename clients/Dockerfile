@@ -6,6 +6,8 @@ RUN pip install fastapi
 
 RUN pip install uvicorn
 
+RUN pip install psutil
+
 WORKDIR /app
 
 COPY . .

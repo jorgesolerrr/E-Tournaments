@@ -103,6 +103,8 @@ def add_match_server(url : str, begin = ""):
     
     if next == begin:
         return True
+    if next == "":
+        return True
     return requests.post(f"http://{next}/addMatchServer", params={"url" : url, "begin" : begin})
 
 
@@ -166,6 +168,9 @@ def add_server(url : str):
     #actualizo el lider
     leader = requests.get(f"http://{url}/GetLeader").json()
     env.leader = leader
+    matches = requests.get(f"http://{url}/GetMatches").json()
+    env.match_servers = matches
+    
 
 
     #voy a replicar el table propio de mi antecesor
@@ -284,15 +289,15 @@ def ping(server):
 
 @server_routes.post("/UpdateLeader")
 def UpdateLeader(url : str):
+    env.set_leader(url)
     with open('./table_connection.json') as table_file:
         table = json.load(table_file)
         table_file.close()
-    if table["current"] == url:
-        return True
     
+    if table["next1"] == url:
+        return True
 
-    env.set_leader(url)
-    return requests.post(f"http://{table['next1']}/UpdateLeader").json()
+    return requests.post(f"http://{table['next1']}/UpdateLeader", params={"url": url}).json()
     
 
 @server_routes.get("/Active")
@@ -356,8 +361,6 @@ def check():
     if table["next1"] and ping(table["next1"]) == 500:
         print("Voy a desconectar a: " + table["next1"])
         disconnect(table)
-        env.set_leader(table["current"])
-        resp = UpdateLeader(table["current"])
         name = check_forUnfinishedTour()
         print("TORNEO QUE ESTOY TERMINANDO DE OTRO SERVIDOR: " + name)
         finish_already_run_Tour(name)
@@ -450,6 +453,7 @@ def disconnect(table):
         print("ESTOY ACTUALIZANDO LAS CONEXIONES")
         with open('./table_connection.json', 'w') as table_file:
             json.dump(table, table_file)
+        resp = UpdateLeader(table["current"])
     except Exception as e:
         print("***************ERROR : " + str(e))
 
@@ -468,6 +472,11 @@ def find_available_server():
             return requests.get(f"http://{table['next1']}/FindAvailableServer").json()
         else:
             return ""
+
+@server_routes.get("/GetMatches")
+def getMatches():
+    return env.match_servers
+
 
 @server_routes.post("/UploadGame")
 async def Upload_game(file : UploadFile = File(...), begins : str = ""):
@@ -566,8 +575,12 @@ def LookForMatches():
         logger.info(mensaje)
         address = mensaje.split(",")[1]
         logger.info(f"****NUEVO SERVIDOR DE PARTIDAS -> {address}*****")
-        #METODO OREJO
-        talker.sendto(address.encode(), ('<broadcast>', 60500))
+        add_match_server(address,"")
+        try:
+            talker.sendto(address.encode(), ('<broadcast>', 50400))
+            logger.info(f"***********RESPUESTA ENVIADA AL SERVIDOR DE PARTIDAS ->{address}**************")
+        except Exception as e:
+            logger.info(f"**********{str(e)}****************")
         
     except Exception as e:
         logger.info( f"**********{str(e)}************")
@@ -641,6 +654,7 @@ def Listen():
         if "Hola a todos" in mensaje:
             logger.info(mensaje)
             address = mensaje.split(",")[1]
+            matches = getMatches()
             #añadiendo servidor al anillo
             try:
                
