@@ -53,7 +53,7 @@ async def SetEnv(request:Request):
 def create_tournament(tournament : Tournament_Schema):
     my_address = get_node_connection("current")
     if env.current_tournament != my_address: 
-        return requests.post(f"http://{env.current_tournament}/create_tournament", json=jsonable_encoder(tournament))
+        return requests.post(f"http://{env.current_tournament}/create_tournament", json=jsonable_encoder(tournament)).json()
     
     games_path = getcwd() + "/games"
     players_path = getcwd() + "/players"
@@ -104,8 +104,12 @@ def execute(background : BackgroundTasks,name: str, firstTime : bool):
     except KeyError:
         available = True
         my_addrs = get_node_connection("current")
-        url_to_execute = findTournament(name, my_addrs)
-        return requests.get(f"http://{url_to_execute}/execute/{name}", params = {"firstTime" : firstTime})
+        logger.info(f"*************{my_addrs}********")
+        url_to_execute = findTournament(name)
+        if url_to_execute is None:
+            logger.error("No tournament found")
+            return {"error": "Tournament not found"}
+        return requests.get(f"http://{url_to_execute}/execute/{name}", params = {"firstTime" : firstTime}).json()
 
         #response = {"error": "Tournament not found"}
     except Exception as e:
@@ -196,7 +200,7 @@ def add_server(url : str):
     current = requests.get(f"http://{url}/GetCurrentT").json()
     env.current_tournament = current
     matches = requests.get(f"http://{url}/GetMatches").json()
-    env.match_servers = matches
+    env.match_servers = [tuple(url) for url in matches]
     logger.info("VOY A TRAER EL CODIGO QUE EXISTA")
     available_code = requests.get(f"http://{leader}/GetAvailableCode").json()
     for game in available_code["games"]:
@@ -502,34 +506,43 @@ def check():
     json.dump(table, table_file)
 
 @server_routes.get("/FindTournament")
-def findTournament(tour_name: str, who_asks: str):
+def findTournament(tour_name: str, who_asks: str =  ""):
+    me = get_node_connection("current")
+    logger.info(f"***********entre a un servidor a buscar el torneo {me}*********")
     with open('./current_tour_data.json') as cdata_file:
         current_data = json.load(cdata_file)
-    with open('./table_connection.json') as table_file:
-        table = json.load(table_file)
+    # with open('./table_connection.json') as table_file:
+    #     table = json.load(table_file)
     tournaments = current_data['tournaments']
     #revisar si algun usuario de los registrados en este servidor es el que busco
     for tourn in tournaments:
         if tour_name == tourn['name']:
         #si lo encuentro cierro los json y lo devuelvo
-            with open('./table_connection.json', 'w') as table_file:
-                json.dump(table, table_file)
+            # with open('./table_connection.json', 'w') as table_file:
+            #     json.dump(table, table_file)
             with open('./current_tour_data.json', 'w') as cdata_file:
                 json.dump(current_data, cdata_file)
-        return table["current"]
-    #si vuelvo a la persona que pregunta devuelvo None 
-    if not who_asks or who_asks == table["current"]:
-        with open('./table_connection.json', 'w') as table_file:
-            json.dump(table, table_file)
+
+            return str(get_node_connection("current"))
+    
+    if who_asks == "":
+        who_asks = me
+    #si vuelvo a la persona que pregunta devuelvo None
+    # not who_asks or  
+    if who_asks == get_node_connection("next1"):
+        # with open('./table_connection.json', 'w') as table_file:
+        #     json.dump(table, table_file)
         with open('./current_tour_data.json', 'w') as cdata_file:
             json.dump(current_data, cdata_file)
+        
         return None
-    with open('./table_connection.json', 'w') as table_file:
-        json.dump(table, table_file)
+    # with open('./table_connection.json', 'w') as table_file:
+    #     json.dump(table, table_file)
     with open('./current_tour_data.json', 'w') as cdata_file:
         json.dump(current_data, cdata_file)
     #sigo buscando preguntándole a mi sucesor
-    return (requests.get(f'http://{table["next1"]}/FindTournament', params= {"tour_name": tour_name, "who_asks": who_asks})).json()
+    loc = str(get_node_connection("next1"))
+    return requests.get(f'http://{loc}/FindTournament', params= {"tour_name": tour_name, "who_asks": who_asks}).json()
 
 
 def disconnect(table):
