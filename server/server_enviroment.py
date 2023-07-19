@@ -9,7 +9,11 @@ class Server_env:
         self.current_port = 0
         self.match_servers = []
         self.leader = ""
-    
+        self.current_tournament = ""
+
+    def set_current_tournament(self, url):
+        self.current_tournament = url
+
     def set_port(self, port):
         self.current_port = port
 

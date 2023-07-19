@@ -42,17 +42,27 @@ class IGame(ABC):
     def GetWinners(self):
         pass
 from os import getcwd
+
 def test():
-    with open(getcwd() + "/Games/TicTacToe.py", "r") as f:
+    with open(getcwd() + "/Players/Random_Player.py", "r") as f:
         content = f.read()
-        
+        print(content)
     exec(content)
     locals_var = locals()
-    instance = type(locals_var["TicTacToe"])
-    print(instance.__call__(locals_var["TicTacToe"]))
+    instance = type(locals_var["Random_Player"])
+    inst = instance.__call__(locals_var["Random_Player"])
+    play = inst.Move([0,1,2])
+    print(play)
 
 
-test()
+a = [1,2,3,4,5]
+for x in a:
+    if x == 1:
+        print(a)
+        a.remove(x)
+        print(a)
+    print(a)
+
 # Ruta del archivo que contiene el módulo
 
 # Usa la clase del módulo

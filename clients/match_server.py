@@ -2,6 +2,8 @@ from fastapi import FastAPI, BackgroundTasks
 from schemas import Match_Schema
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
+import numpy as np
+import random
 import uvicorn
 import socket 
 import sys
@@ -34,6 +36,7 @@ def _playMatch(match : Match_Schema):
             return
     
     local_vars = locals()
+    logger.info(str(local_vars))
     try :
         current_game = local_vars[match.game.name]
     except KeyError:

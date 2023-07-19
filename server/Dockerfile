@@ -13,6 +13,8 @@ RUN pip install fastapi_utils
 
 RUN pip install python-multipart
 
+RUN pip install numpy
+
 
 
 WORKDIR /app

@@ -132,7 +132,7 @@ class Tournament(ABC):
             self.missing_matches.remove(match)
 
             try:
-                print(match)
+                #print(match)
 
                 for player in match.players:
                     print("*****************ESTOY ACTUALIZANDO EL ESTADO DEL JUGADOR : " + str(player.id))
@@ -149,12 +149,24 @@ class Tournament(ABC):
         count = 0
         for match_server in self.env.match_servers:
             try:
-                current_exec_matches_schema = [match[0] for match in self.executed_matches[match_server]]
+                current_exec_matches_schema = self.executed_matches[match_server]
             except KeyError:
                 continue
             try:
                 active = requests.get(f"http://{match_server[0]}:{match_server[1]}/active")
             except:
+                unfinished_matches = [match[0] for match in current_exec_matches_schema if not match[1]]
+                if len(unfinished_matches) > 0:
+                    self.matches.extend(unfinished_matches)
+                try:
+                    for match in unfinished_matches:
+                        self.SetPlayerStatus(match, False)
+                except:
+                    pass
+                try:
+                    self.env.match_servers.remove(match_server)
+                except ValueError:
+                    pass
                 logger.error("ERROR TRATANDO DE CONECTARME CON :" + str(match_server))
                 continue
             
@@ -274,7 +286,6 @@ class League(Tournament):
             if not firstTime:
                 self.player_status = { player.id : False for player in self.players }
             
-            count = 0
             while (len(self.matches) > 0) or (self.checkWinners()):
                 if len(self.matches) > 0:
                     for match_server in self.env.match_servers:
@@ -283,11 +294,22 @@ class League(Tournament):
                             response = requests.get(f"http://{match_server[0]}:{match_server[1]}/active").json()
                         except Exception as e:
                             logger.error("ERRORRRR-----------------------> " + str(e))
-                            count += 1
-                            self.matches.extend(self.executed_matches[match_server])
-                            if count == len(self.env.match_servers):
-                                raise Exception("Los servidores de partida estan caidos")
-                            self.env.match_servers.remove(match_server)
+                            try:
+                                unfinished_matches = [match[0] for match in self.executed_matches[match_server] if not match[1]]
+                            except KeyError:
+                                unfinished_matches = []
+                                
+                            if len(unfinished_matches) > 0:
+                                self.matches.extend(unfinished_matches)
+                            
+                            for match in unfinished_matches:
+                                self.SetPlayerStatus(match, False)
+
+                            try:
+                                self.env.match_servers.remove(match_server)
+                            except ValueError:
+                                pass
+                            logger.info("Los servidores de partida que quedan son : " + str(self.env.match_servers))
                             continue
                         if match_server not in self.executed_matches.keys():
                             self.executed_matches[match_server] = []
@@ -329,6 +351,10 @@ class League(Tournament):
                         print("**************VOY A CHEQUEAR SI HAY PARTIDAS TERMINADAS")
                         end = self.checkWinners()
                         self.UpdateCurrentData()
+                    
+                    if len(self.env.match_servers) == 0:
+                        logger.error("No match servers available")
+                        raise Exception("No match servers available")
 
                     
             
@@ -423,17 +449,15 @@ class Playoffs(Tournament):
                 break
     
     def Execute(self, firstTime = True):
-        if firstTime:
-            with open("./current_tour_data.json") as cdata_file:
-                data_json = json.load(cdata_file)
-            tour_data = jsonable_encoder(self.tournament_data)
-            data_json["tournaments"].append(tour_data)
-            self.sendData()
-            with open("./current_tour_data.json", "w") as cdata_file:
-                json.dump(data_json, cdata_file)
-        
-        client = docker.from_env()
-        count = 0
+        # if firstTime:
+        #     with open("./current_tour_data.json") as cdata_file:
+        #         data_json = json.load(cdata_file)
+        #     tour_data = jsonable_encoder(self.tournament_data)
+        #     data_json["tournaments"].append(tour_data)
+        #     self.sendData()
+        #     with open("./current_tour_data.json", "w") as cdata_file:
+        #         json.dump(data_json, cdata_file)
+
         len_matches = len(self.matches)
 
         winners = []
@@ -446,10 +470,8 @@ class Playoffs(Tournament):
                             self.executed_matches[match_server] = []
                     except Exception as e:
                         print("ERRORRRR-----------------------> " + str(e))
-                        count += 1
-                        self.matches.extend(self.executed_matches[match_server])
-                        if count == len(self.env.match_servers):
-                            raise Exception("Los servidores de partida estan caidos")
+                        unfinished_matches = [match[0] for match in self.executed_matches[match_server] if not match[1]]
+                        self.matches.extend(unfinished_matches)
                         continue
                     
                     
@@ -480,6 +502,10 @@ class Playoffs(Tournament):
                     print("**************VOY A CHEQUEAR SI HAY PARTIDAS TERMINADAS")
                     end = self.checkWinners()
                     self.UpdateCurrentData()
+
+                if len(self.env.match_servers) == 0:
+                    logger.error("No match servers available")
+                    raise Exception("No match servers available")
         
         
         if len(self.matches) == 0:

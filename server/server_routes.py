@@ -2,7 +2,7 @@ import importlib.util
 import inspect
 import time
 from fastapi import FastAPI, Response, BackgroundTasks,Request, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,6 +51,10 @@ async def SetEnv(request:Request):
 
 @server_routes.post("/create_tournament")
 def create_tournament(tournament : Tournament_Schema):
+    my_address = get_node_connection("current")
+    if env.current_tournament != my_address: 
+        return requests.post(f"http://{env.current_tournament}/create_tournament", json=jsonable_encoder(tournament))
+    
     games_path = getcwd() + "/games"
     players_path = getcwd() + "/players"
     if not f"{tournament.game.name}.py" in listdir(games_path):
@@ -64,6 +68,12 @@ def create_tournament(tournament : Tournament_Schema):
     currentTournament = tournaments_types[tournament.type](env, name = tournament.name, game = tournament.game, type = tournament.type, players=tournament.players)
     currentTournament.AddTournamentToData()
     tournaments[tournament.name] = currentTournament
+    next1 = get_node_connection("next1")
+    if next1 == "":
+        UpdateCurrent(my_address)
+    else:
+        UpdateCurrent(next1)
+
     return "success"
 
 @server_routes.post("/finish_tour")
@@ -86,13 +96,18 @@ def finishTournament(tournamentData : Tournament_data):
 
 @server_routes.get("/execute/{name}")
 def execute(background : BackgroundTasks,name: str, firstTime : bool):
+    
     try:
         available = False 
         background.add_task(tournaments[name].Execute, firstTime)
         response = "executing in background"
     except KeyError:
         available = True
-        response = {"error": "Tournament not found"}
+        my_addrs = get_node_connection("current")
+        url_to_execute = findTournament(name, my_addrs)
+        return requests.get(f"http://{url_to_execute}/execute/{name}", params = {"firstTime" : firstTime})
+
+        #response = {"error": "Tournament not found"}
     except Exception as e:
         available =True
         response = {"error": str(e)}
@@ -115,7 +130,7 @@ def add_match_server(url : str, begin = ""):
         return True
     if next == "":
         return True
-    return requests.post(f"http://{next}/addMatchServer", params={"url" : url, "begin" : begin})
+    return requests.post(f"http://{next}/addMatchServer", params={"url" : url, "begin" : begin}).json()
 
 
 
@@ -178,11 +193,31 @@ def add_server(url : str):
     #actualizo el lider
     leader = requests.get(f"http://{url}/GetLeader").json()
     env.leader = leader
+    current = requests.get(f"http://{url}/GetCurrentT").json()
+    env.current_tournament = current
     matches = requests.get(f"http://{url}/GetMatches").json()
     env.match_servers = matches
-    response = requests.post(f"http://{leader}/SendGamePlayersCode", params={"url_to_send" : table["current"]}).json()
-
-        
+    logger.info("VOY A TRAER EL CODIGO QUE EXISTA")
+    available_code = requests.get(f"http://{leader}/GetAvailableCode").json()
+    for game in available_code["games"]:
+        if ".py" not in game:
+            continue
+        logger.info("VOY A DESCARGAR EL ARCHIVO : " + game)
+        response = requests.get(f"http://{leader}/DownloadCode", params={"filename" : game, "game" : True})
+        with open("./games/" + game, "wb") as game_file:
+            game_file.write(response.content)
+            game_file.close()
+    logger.info("TERMINE DE DESCARGAR LOS JUEGOS, REVISA SI QUIERES")
+    for player in available_code["players"]:
+        if ".py" not in player:
+            continue
+        logger.info("VOY A DESCARGAR EL ARCHIVO : " + player)
+        response = requests.get(f"http://{leader}/DownloadCode", params={"filename" : player, "game" : False})
+        with open("./players/" + player, "wb") as player_file:
+            player_file.write(response.content)
+            player_file.close()
+    
+    logger.info("TERMINE DE DESCARGAR TODO")
 
 
     #voy a replicar el table propio de mi antecesor
@@ -192,6 +227,35 @@ def add_server(url : str):
     
 
     return "success"
+
+@server_routes.get("/GetCurrentT")
+def get_current_T():
+    return env.current_tournament
+
+@server_routes.get("/DownloadCode")
+def download_code(filename : str, game : bool = True):
+    if game:
+        path = "./games"
+    else:
+        path = "./players"
+    
+    if filename not in listdir(path):
+        return False
+    
+    return FileResponse(f"{path}/{filename}", filename=filename)
+
+
+@server_routes.get("/GetAvailableCode")
+def getAvailableCode():
+    path_games = "./games"
+    path_players = "./players"
+    
+    code = {
+        "games" : listdir(path_games),
+        "players" : listdir(path_players)
+    }
+    return jsonable_encoder(code)
+
 
 @server_routes.get("/GetNodeConnection")
 def get_node_connection(position: str):
@@ -297,11 +361,15 @@ def update_data(clean=False):
         json.dump(table, table_file)
     if clean:
     #se limpia la información replicada que guarda este servidor
-        r_data = {"tournaments": []}
+        r_data = {
+            "next_tournament" : "",
+            "tournaments": []
+        }
     else:
         #se obtiene el data propio de mi antecesor, el cual debo replicar en mi
         prev_data = requests.get(f'http://{previous}/GetServerData', params= {"replicated": False}).json()  
         #se añade a mi información replicada la información propia de mi antecesor
+        r_data["next_tournament"] = ""
         for tourn in prev_data["tournaments"]:
             if len(r_data["tournaments"]) == 0:
                 r_data["tournaments"].append(jsonable_encoder(tourn))
@@ -319,7 +387,7 @@ def update_data(clean=False):
 @server_routes.get("/Ping")
 def ping(server):    
     try:
-        requests.get(f'http://{server}/Active', timeout=1.5)
+        requests.get(f'http://{server}/Active', timeout=10)
         return 200
     except:
         return 500
@@ -335,7 +403,24 @@ def UpdateLeader(url : str):
         return True
 
     return requests.post(f"http://{table['next1']}/UpdateLeader", params={"url": url}).json()
+
+@server_routes.post("/UpdateCurrent")
+def UpdateCurrent(url : str, begin: str = ""):
+    env.set_current_tournament(url)
+    with open('./table_connection.json') as table_file:
+        table = json.load(table_file)
+        table_file.close()
     
+    if begin == "":
+        begin = table["current"]
+
+    if table["next1"] == "":
+        return True
+
+    if table["next1"] == begin:
+        return True
+
+    return requests.post(f"http://{table['next1']}/UpdateCurrent", params={"url": url, "begin" : begin}).json()
 
 @server_routes.get("/Active")
 def active():
@@ -396,8 +481,18 @@ def check():
     table_file.close()
     #si no puedo llegar a mi next1 desconectalo de la red
     if table["next1"] and ping(table["next1"]) == 500:
+        todisc = table["next1"]
         print("Voy a desconectar a: " + table["next1"])
         disconnect(table)
+        if env.leader == todisc:
+            resp = UpdateLeader(table["current"])
+            logger.info("HAY UN NUEVO LIDER : ----->" + table["current"])
+        if env.current_tournament == todisc:
+            if table["next1"] == "":
+                UpdateCurrent(table["current"])
+            else:
+                UpdateCurrent(table["next1"])
+
         name = check_forUnfinishedTour()
         print("TORNEO QUE ESTOY TERMINANDO DE OTRO SERVIDOR: " + name)
         finish_already_run_Tour(name)
@@ -434,7 +529,7 @@ def findTournament(tour_name: str, who_asks: str):
     with open('./current_tour_data.json', 'w') as cdata_file:
         json.dump(current_data, cdata_file)
     #sigo buscando preguntándole a mi sucesor
-    return (requests.get(f'http://{table["next1"]}/FindServer', params= {"tour_name": tour_name, "who_asks": who_asks})).json()
+    return (requests.get(f'http://{table["next1"]}/FindTournament', params= {"tour_name": tour_name, "who_asks": who_asks})).json()
 
 
 def disconnect(table):
@@ -490,7 +585,7 @@ def disconnect(table):
         print("ESTOY ACTUALIZANDO LAS CONEXIONES")
         with open('./table_connection.json', 'w') as table_file:
             json.dump(table, table_file)
-        resp = UpdateLeader(table["current"])
+        # resp = UpdateLeader(table["current"])
     except Exception as e:
         print("***************ERROR : " + str(e))
 
@@ -531,12 +626,10 @@ async def Upload_game(file : UploadFile = File(...), begins : str = "", game : b
         begins = current
 
     content = await file.read()
-    time.sleep(1)
     if not file.filename in listdir(path):   
         with open(path + f"/{file.filename}","wb") as pyFile:
             logger.info("***************ESTOY GUARDANDO EL ARCHIVO")
             pyFile.write(content)
-            time.sleep(1)
             pyFile.close()
     
     if begins == current:
@@ -615,6 +708,7 @@ def present_yourself():
     
     logger.info("*********SOY EL LÍDER*********")
     env.set_leader(my_adress)
+    env.set_current_tournament(my_adress)
     listen.close()
     sock.close()
 

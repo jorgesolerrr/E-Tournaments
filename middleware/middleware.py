@@ -169,23 +169,23 @@ main()
 #   "players": [
 #     {
 #       "id": 0,
-#       "type": "random"
+#       "type": "Random_Player"
 #     },
 #     {
 #       "id": 1,
-#       "type": "random"
+#       "type": "Random_Player"
 #     },
 #     {
 #       "id": 2,
-#       "type": "random"
+#       "type": "Random_Player"
 #     },
 #     {
 #       "id": 3,
-#       "type": "random"
+#       "type": "Random_Player"
 #     },
 #     {
 #       "id": 4,
-#       "type": "random"
+#       "type": "Random_Player"
 #     }
 
 #   ],
